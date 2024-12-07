@@ -12,9 +12,9 @@ use crate::{sigma_dl::SigmaDlProof, sigma_dleq::SigmaDleqProof, sum_square::ZkSu
 #[derive(Clone)]
 pub struct Voter {
     VoterID: usize,
-    xi_vec: Vec<Scalar<Secp256k1>>,
-    yi_vec: Vec<Point<Secp256k1>>,
-    proofi_dl: SigmaDlProof
+    x_vec: Vec<Scalar<Secp256k1>>,
+    y_vec: Vec<Point<Secp256k1>>,
+    proof_dl: SigmaDlProof
 }
 
 pub struct Board {
@@ -34,12 +34,12 @@ pub struct PublicParam {
 
 #[derive(Clone)]
 pub struct BallotWithProof {
-    Bi_vec: Vec<Point<Secp256k1>>,
-    Bi: Point<Secp256k1>,
-    proofi_dl: SigmaDlProof,
-    proofi_eq: SigmaDleqProof,
-    proofi_ss: ZkSumSquareArg,
-    proofi_ar: VarRange
+    B_vec: Vec<Point<Secp256k1>>,
+    B: Point<Secp256k1>,
+    proof_dl: SigmaDlProof,
+    proof_eq: SigmaDleqProof,
+    proof_ss: ZkSumSquareArg,
+    proof_ar: VarRange
 }
 
 // Shanks' baby-step giant-step algorithm, calculate ind_g{B}
@@ -119,128 +119,130 @@ impl Voter {
 
         let h_vec = h_vec.to_vec();
 
-        let mut xi_vec: Vec<Scalar<Secp256k1>> = Vec::new();
+        let mut x_vec: Vec<Scalar<Secp256k1>> = Vec::new();
         for _j in 0..nc {
-            xi_vec.push(Scalar::<Secp256k1>::random());
+            x_vec.push(Scalar::<Secp256k1>::random());
         }
 
-        let yi_vec = (0..nc)
-            .map(|j| &h_vec[j].clone() * xi_vec[j].clone())
+        let y_vec = (0..nc)
+            .map(|j| &h_vec[j].clone() * x_vec[j].clone())
             .collect::<Vec<Point<Secp256k1>>>();
         
         let mut transcript = Transcript::new(b"Proof");
-        let proofi_dl = SigmaDlProof::prove(&mut transcript, &xi_vec, &h_vec, nc);
+        let proof_dl = SigmaDlProof::prove(&mut transcript, &x_vec, &h_vec, nc);
 
-        BulletinBoard.y_vec.push(yi_vec.clone());
+        BulletinBoard.y_vec.push(y_vec.clone());
         
         Voter {
             VoterID,
-            xi_vec,
-            yi_vec,
-            proofi_dl
+            x_vec,
+            y_vec,
+            proof_dl
         }
     }
 
     pub fn vote(
         &self,
-        vi_vec: &[Scalar<Secp256k1>],
-        ti: Scalar<Secp256k1>,
+        v_vec: &[Scalar<Secp256k1>],
+        token: Scalar<Secp256k1>,
         BulletinBoard: &mut Board,
         seed: &BigInt
     ) -> BallotWithProof {
-        assert_eq!(vi_vec.len(), BulletinBoard.pp.nc);
+        assert_eq!(v_vec.len(), BulletinBoard.pp.nc);
         assert_eq!(BulletinBoard.y_vec.len(), BulletinBoard.pp.nv);
         assert_eq!(BulletinBoard.y_vec[0].len(), BulletinBoard.pp.nc);
         assert_eq!(BulletinBoard.pp.g_vec.len(), BulletinBoard.pp.nc);
         assert_eq!(BulletinBoard.pp.h_vec.len(), BulletinBoard.pp.nc);
 
-        let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
+        let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
         for j in 0..BulletinBoard.pp.nc {
             for k in 0..self.VoterID {
-                Yi_vec[j] = &Yi_vec[j] + &BulletinBoard.y_vec[k][j];
+                Y_vec[j] = &Y_vec[j] + &BulletinBoard.y_vec[k][j];
             }
             for k in self.VoterID+1..BulletinBoard.pp.nv {
-                Yi_vec[j] = &Yi_vec[j] - &BulletinBoard.y_vec[k][j];
+                Y_vec[j] = &Y_vec[j] - &BulletinBoard.y_vec[k][j];
             }
         }
 
-        let Bi_vec = (0..BulletinBoard.pp.nc)
-            .map(|j| &BulletinBoard.pp.g_vec[j].clone()*vi_vec[j].clone() + &Yi_vec[j].clone()*self.xi_vec[j].clone())
+        let B_vec = (0..BulletinBoard.pp.nc)
+            .map(|j| &BulletinBoard.pp.g_vec[j].clone()*v_vec[j].clone() + &Y_vec[j].clone()*self.x_vec[j].clone())
             .collect::<Vec<Point<Secp256k1>>>();
 
-        let mut ui = Scalar::<Secp256k1>::zero();
+        let mut u = Scalar::<Secp256k1>::zero();
         for j in 0..BulletinBoard.pp.nc {
-            ui = ui + vi_vec[j].clone() * vi_vec[j].clone();
+            u = u + v_vec[j].clone() * v_vec[j].clone();
         }
 
-        let ri = Scalar::<Secp256k1>::random();
-        let Bi = &BulletinBoard.pp.g * ui.clone() + &BulletinBoard.pp.h * ri.clone();
+        let r = Scalar::<Secp256k1>::random();
+        let B = &BulletinBoard.pp.g * u.clone() + &BulletinBoard.pp.h * r.clone();
 
         let mut transcript = Transcript::new(b"Proof");
-        let proofi_eq = SigmaDleqProof::prove(
+        let proof_eq = SigmaDleqProof::prove(
             &mut transcript,
-            &vi_vec, 
-            &self.xi_vec, 
+            &v_vec, 
+            &self.x_vec, 
+            &self.y_vec,
+            &B_vec,
             &BulletinBoard.pp.h_vec, 
             &BulletinBoard.pp.g_vec, 
-            &Yi_vec, 
+            &Y_vec, 
             BulletinBoard.pp.nc
         );
 
         let mut transcript = Transcript::new(b"Proof");
-        let proofi_ss = ZkSumSquareArg::prove(
+        let proof_ss = ZkSumSquareArg::prove(
             &mut transcript, 
             &BulletinBoard.pp.g_vec, 
-            &Yi_vec, 
+            &Y_vec, 
             &BulletinBoard.pp.g, 
             &BulletinBoard.pp.h, 
-            &Bi_vec.clone().into_iter().sum(), 
-            &Bi, 
-            vi_vec, 
-            &self.xi_vec, 
-            &ui, 
-            &ri, 
+            &B_vec.clone().into_iter().sum(), 
+            &B, 
+            v_vec, 
+            &self.x_vec, 
+            &u, 
+            &r, 
             BulletinBoard.pp.nc, 
             seed
         );
 
-        let mut gi = BulletinBoard.pp.g_vec.clone();
-        gi.push(BulletinBoard.pp.g.clone());
-        let mut hi = Yi_vec;
-        hi.push(BulletinBoard.pp.h.clone());
-        let mut values = vi_vec.to_vec();
-        values.push(ui.clone());
-        let mut x_vec = self.xi_vec.clone();
-        x_vec.push(ri);
-        let mut B_vec = Bi_vec.clone();
-        B_vec.push(Bi.clone());
-        let si = BigInt::sqrt(&ti.to_bigint());
-        for j in 0..values.len()-1 {
-            assert!(values[j].to_bigint() < si);
+        let mut g_extend = BulletinBoard.pp.g_vec.clone();
+        g_extend.push(BulletinBoard.pp.g.clone());
+        let mut h_extend = Y_vec;
+        h_extend.push(BulletinBoard.pp.h.clone());
+        let mut v_vec_extend = v_vec.to_vec();
+        v_vec_extend.push(u.clone());
+        let mut x_vec_extend = self.x_vec.clone();
+        x_vec_extend.push(r);
+        let mut B_vec_extend = B_vec.clone();
+        B_vec_extend.push(B.clone());
+        let s = BigInt::sqrt(&token.to_bigint());
+        for j in 0..v_vec_extend.len()-1 {
+            assert!(v_vec_extend[j].to_bigint() < s);
         }
-        assert!(ui.to_bigint() < ti.to_bigint());
+        assert!(u.to_bigint() < token.to_bigint());
 
         let mut transcript = Transcript::new(b"Proof");
-        let proofi_ar = VarRange::range_prove(
+        let proof_ar = VarRange::range_prove(
             &mut transcript, 
-            &gi,
-            &hi,
-            values, 
-            x_vec, 
-            Scalar::<Secp256k1>::from_bigint(&si), 
-            ti, 
+            &g_extend,
+            &h_extend,
+            v_vec_extend, 
+            x_vec_extend, 
+            Scalar::<Secp256k1>::from_bigint(&s), 
+            token, 
             BulletinBoard.pp.nc, 
-            &B_vec, 
+            &B_vec_extend, 
             seed
         );
 
         let ballot_proof = BallotWithProof {
-            Bi_vec,
-            Bi,
-            proofi_dl: self.proofi_dl.clone(),
-            proofi_eq,
-            proofi_ss,
-            proofi_ar
+            B_vec,
+            B,
+            proof_dl: self.proof_dl.clone(),
+            proof_eq,
+            proof_ss,
+            proof_ar
         };
         BulletinBoard.ballot_proof.push(ballot_proof.clone());
 
@@ -289,7 +291,7 @@ impl Board {
 
             // verify the proofs
             let mut transcript = Transcript::new(b"Proof");
-            let res_dl = self.ballot_proof[i].proofi_dl.verify(
+            let res_dl = self.ballot_proof[i].proof_dl.verify(
                 &mut transcript, 
                 &self.y_vec[i], 
                 &self.pp.h_vec, 
@@ -298,10 +300,10 @@ impl Board {
             assert!(res_dl.is_ok());
 
             let mut transcript = Transcript::new(b"Proof");
-            let res_dleq = self.ballot_proof[i].proofi_eq.verify(
+            let res_dleq = self.ballot_proof[i].proof_eq.verify(
                 &mut transcript, 
                 &self.y_vec[i], 
-                &self.ballot_proof[i].Bi_vec, 
+                &self.ballot_proof[i].B_vec, 
                 &self.pp.h_vec, 
                 &self.pp.g_vec, 
                 &Yi_vec, 
@@ -310,14 +312,14 @@ impl Board {
             assert!(res_dleq.is_ok());
 
             let mut transcript = Transcript::new(b"Proof");
-            let res_ss = self.ballot_proof[i].proofi_ss.verify(
+            let res_ss = self.ballot_proof[i].proof_ss.verify(
                 &mut transcript,
                 &self.pp.g_vec, 
                 &Yi_vec,
                 &self.pp.g, 
                 &self.pp.h, 
-                &self.ballot_proof[i].Bi_vec.clone().into_iter().sum(), 
-                &self.ballot_proof[i].Bi, 
+                &self.ballot_proof[i].B_vec.clone().into_iter().sum(), 
+                &self.ballot_proof[i].B, 
                 self.pp.nc, 
                 seed
             );
@@ -327,12 +329,12 @@ impl Board {
             gi.push(self.pp.g.clone());
             let mut hi = Yi_vec;
             hi.push(self.pp.h.clone());
-            let mut B_vec = self.ballot_proof[i].Bi_vec.clone();
-            B_vec.push(self.ballot_proof[i].Bi.clone());
+            let mut B_vec = self.ballot_proof[i].B_vec.clone();
+            B_vec.push(self.ballot_proof[i].B.clone());
             let si = BigInt::sqrt(&token[i].clone().to_bigint());
 
             let mut transcript = Transcript::new(b"Proof");
-            let res_ar = self.ballot_proof[i].proofi_ar.range_verify(
+            let res_ar = self.ballot_proof[i].proof_ar.range_verify(
                 &mut transcript, 
                 &gi, 
                 &hi,
@@ -359,7 +361,7 @@ impl Board {
         for j in 0..self.pp.nc {
             let mut Bj = Point::<Secp256k1>::zero();
             for i in 0..self.pp.nv {
-                Bj = Bj + self.ballot_proof[i].Bi_vec[j].clone();
+                Bj = Bj + self.ballot_proof[i].B_vec[j].clone();
             }
             ballots.push(tally_helper(&self.pp.g_vec[j], &Bj, &BigInt::from((1_u64 << 16) as u64)));
         }
@@ -407,7 +409,7 @@ mod test {
         let mut board = Board::setup(&g_vec, &h_vec, &g, &h, nv, nc);
         for i in 0..nv {
             let Vi = Voter::gen(i, &h_vec, nv, nc, &mut board);
-            y_vec.push(Vi.yi_vec.clone());
+            y_vec.push(Vi.y_vec.clone());
             Voter_vec.push(Vi.clone());
         }
         
@@ -447,7 +449,7 @@ mod test {
     pub fn test_voting_with_verify() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_with_verify(&kzen_label, 3, 10);
+        test_helper_with_verify(&kzen_label, 1, 512);
     }
 
     #[test]
@@ -456,8 +458,8 @@ mod test {
         let kzen_label = BigInt::from_bytes(KZen);
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
-        let scalar = Scalar::<Secp256k1>::from(65564);
+        let scalar = Scalar::<Secp256k1>::from(1000);
         let point = &g * scalar.clone();
-        assert_eq!(scalar, tally_helper(&g, &point, &BigInt::from((1_u64 << 32) as u64)));
+        assert_eq!(scalar, tally_helper(&g, &point, &BigInt::from((1_u64 << 16) as u64)));
     }
 }

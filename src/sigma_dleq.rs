@@ -18,6 +18,8 @@ impl SigmaDleqProof {
         transcript: &mut Transcript,
         v_vec: &[Scalar<Secp256k1>],
         x_vec: &[Scalar<Secp256k1>],
+        y_vec: &[Point<Secp256k1>],
+        B_vec: &[Point<Secp256k1>],
         h_vec: &[Point<Secp256k1>],
         g_vec: &[Point<Secp256k1>],
         Y_vec: &[Point<Secp256k1>],
@@ -40,6 +42,8 @@ impl SigmaDleqProof {
         transcript.append_points_array(b"h_vec", &h_vec);
         transcript.append_points_array(b"g_vec", &g_vec);
         transcript.append_points_array(b"Y_vec", &Y_vec);
+        transcript.append_points_array(b"y_vec", y_vec);
+        transcript.append_points_array(b"B_vec", B_vec);
 
         let mut r_vec: Vec<Scalar<Secp256k1>> = Vec::with_capacity(n);
         let mut s_vec: Vec<Scalar<Secp256k1>> = Vec::with_capacity(n);
@@ -104,6 +108,8 @@ impl SigmaDleqProof {
         transcript.append_points_array(b"h_vec", &h_vec);
         transcript.append_points_array(b"g_vec", &g_vec);
         transcript.append_points_array(b"Y_vec", &Y_vec);
+        transcript.append_points_array(b"y_vec", &y_vec);
+        transcript.append_points_array(b"B_vec", &B_vec);
 
         transcript.append_points_array(b"R_vec", &self.R_vec);
         transcript.append_points_array(b"S_vec", &self.S_vec);
@@ -190,7 +196,7 @@ mod test {
             .collect::<Vec<Point<Secp256k1>>>();
 
         let mut verifier = Transcript::new(b"sigmatest");
-        let proof = SigmaDleqProof::prove(&mut verifier, &v_vec, &x_vec, &h_vec, &g_vec, &Y_vec, n);
+        let proof = SigmaDleqProof::prove(&mut verifier, &v_vec, &x_vec, &y_vec, &B_vec, &h_vec, &g_vec, &Y_vec, n);
         let mut verifier = Transcript::new(b"sigmatest");
         let result = proof.verify(&mut verifier, &y_vec, &B_vec, &h_vec, &g_vec, &Y_vec, n);
         assert!(result.is_ok());

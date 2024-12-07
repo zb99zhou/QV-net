@@ -19,7 +19,7 @@ arithmetic = { git = "https://github.com/zb99zhou/hyperplonk.git" }
 VarRange = { git = "https://github.com/zb99zhou/VarRange.git" }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3.0"
 
 [features]
 default = ["curv-kzen/rust-gmp-kzen"]
