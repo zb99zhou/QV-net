@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 
-use curv::{arithmetic::Roots, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
+use std::collections::HashMap;
+
+use ark_ff::{One, Zero};
+use curv::{arithmetic::{Converter, Roots}, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
 use merlin::Transcript;
 use VarRange::proofs::varrange::VarRange;
 
@@ -37,6 +40,46 @@ pub struct BallotWithProof {
     proofi_eq: SigmaDleqProof,
     proofi_ss: ZkSumSquareArg,
     proofi_ar: VarRange
+}
+
+// Shanks' baby-step giant-step algorithm, calculate ind_g{B}
+pub fn tally_helper(g: &Point<Secp256k1>, B: &Point<Secp256k1>, bound: &BigInt) -> Scalar<Secp256k1> {
+    let n_bn = bound.sqrt();
+    let n = &Scalar::<Secp256k1>::from_bigint(&n_bn);
+    let mut counter = BigInt::one();
+    let one = &Scalar::<Secp256k1>::from(1);
+    let one_bn = &BigInt::from(1);
+    let mut res = Scalar::<Secp256k1>::zero();
+
+    let mut p = Scalar::<Secp256k1>::from(1);
+    let mut q = Scalar::<Secp256k1>::from(0);
+    let mut giants: HashMap<Vec<u8>, Scalar<Secp256k1>> = HashMap::new();
+    let mut giant: Point<Secp256k1>;
+    let mut baby: Point<Secp256k1>;
+    
+    while counter <= n_bn {
+        giant = g * (p.clone() * n);
+        giants.insert(giant.x_coord().unwrap().to_bytes(), p.clone());
+        p = p + one;
+        counter += one_bn;
+    }
+
+    counter = BigInt::zero();
+    while counter <= n_bn {
+        baby = B + g * q.clone();
+        if let Some(&ref giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
+            res = giant_p.clone();
+            break;
+        }
+        q = q + one;
+        counter += one_bn;
+    }
+
+    if g * (res.clone() * n - q.clone()) == *B {
+        return res * n - q;
+    } else {
+        return - res * n - q;
+    }
 }
 
 impl PublicParam {
@@ -231,6 +274,7 @@ impl Board {
         assert_eq!(self.pp.g_vec.len(), self.pp.nc);
         assert_eq!(self.pp.h_vec.len(), self.pp.nc);
         assert_eq!(self.ballot_proof.len(), self.pp.nv);
+        assert_eq!(token.len(), self.pp.nv);
 
         for i in 0..self.pp.nv {
             let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); self.pp.nc];
@@ -301,6 +345,26 @@ impl Board {
             assert!(res_ar.is_ok());
         }
     }
+
+    pub fn tally(
+        &self
+    ) -> Vec<Scalar<Secp256k1>> {
+        assert_eq!(self.y_vec.len(), self.pp.nv);
+        assert_eq!(self.y_vec[0].len(), self.pp.nc);
+        assert_eq!(self.pp.g_vec.len(), self.pp.nc);
+        assert_eq!(self.pp.h_vec.len(), self.pp.nc);
+        assert_eq!(self.ballot_proof.len(), self.pp.nv);
+
+        let mut ballots: Vec<Scalar<Secp256k1>> = Vec::with_capacity(self.pp.nc);
+        for j in 0..self.pp.nc {
+            let mut Bj = Point::<Secp256k1>::zero();
+            for i in 0..self.pp.nv {
+                Bj = Bj + self.ballot_proof[i].Bi_vec[j].clone();
+            }
+            ballots.push(tally_helper(&self.pp.g_vec[j], &Bj, &BigInt::from((1_u64 << 16) as u64)));
+        }
+        ballots
+    }
 }
 
 mod test {
@@ -308,12 +372,11 @@ mod test {
     use sha2::{Digest, Sha512};
     use rand::Rng;
 
-    use crate::sigma_dl::generate_random_point;
+    use crate::{sigma_dl::generate_random_point, voting::tally_helper};
 
     use super::{Board, Voter};
 
-
-    pub fn test_helper(seed: &BigInt, nv: usize, nc: usize) {
+    pub fn test_helper_with_verify(seed: &BigInt, nv: usize, nc: usize) {
         let h_vec = (0..nc)
             .map(|i| {
                 let kzen_label_i = BigInt::from(i as u32) + seed;
@@ -349,8 +412,8 @@ mod test {
         }
         
         let mut rng = rand::thread_rng();
-        let start = 1;
-        let end = 10;
+        let start: u64 = 1;
+        let end: u64 = 10;
         let mut v_vec: Vec<Vec<Scalar<Secp256k1>>> = Vec::new();
         let mut tokens: Vec<Scalar<Secp256k1>> = Vec::new();
         for i in 0..nv {
@@ -368,23 +431,33 @@ mod test {
         }
         
         board.verify(tokens, &(BigInt::from((nc*2+1) as u32) + seed));
+        let res = board.tally();
+
+        // test correctness
+        for j in 0..nc {
+            let mut Bj = Scalar::<Secp256k1>::zero();
+            for i in 0..nv {
+                Bj = Bj + v_vec[i][j].clone();
+            }
+            assert_eq!(Bj, res[j]);
+        }
     }
 
     #[test]
-    pub fn test_voting() {
+    pub fn test_voting_with_verify() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 50, 5);
+        test_helper_with_verify(&kzen_label, 3, 10);
     }
 
-    // #[test]
-    // pub fn test_convert() {
-    //     let val = Scalar::<Secp256k1>::zero();
-    //     let val_fr = Scalar2Fr::<Fr>(&val);
-    //     let val_tag = Fr2Scalar::<Fr>(&val_fr);
-        
-    //     println!("val is {}", val.to_bigint());
-    //     println!("val_fr is {}", val_fr);
-    //     println!("val_tag is {}", val_tag.to_bigint());
-    // }
+    #[test]
+    pub fn test_shanks() {
+        let KZen: &[u8] = &[75, 90, 101, 110];
+        let kzen_label = BigInt::from_bytes(KZen);
+        let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
+        let g = generate_random_point(&Converter::to_bytes(&hash));
+        let scalar = Scalar::<Secp256k1>::from(65564);
+        let point = &g * scalar.clone();
+        assert_eq!(scalar, tally_helper(&g, &point, &BigInt::from((1_u64 << 32) as u64)));
+    }
 }
