@@ -21,5 +21,6 @@ pub enum Errors {
     SigmaDlProofError,
     SigmaDleqProofError,
     ZkEvalProofError,
-    ZkSumSquareArgError
+    ZkSumSquareArgError,
+    VotingError
 }

@@ -43,6 +43,7 @@ impl SigmaDlProof {
     pub fn prove(
         transcript: &mut Transcript,
         x_vec: &[Scalar<Secp256k1>],
+        y_vec: &[Point<Secp256k1>],
         h_vec: &[Point<Secp256k1>],
         n: usize
     ) -> SigmaDlProof {
@@ -50,6 +51,7 @@ impl SigmaDlProof {
         assert_eq!(h_vec.len(), n);
 
         transcript.sigma_dl_domain_sep(n as u64);
+        transcript.append_points_array(b"y_vec", y_vec);
 
         let x_vec = x_vec.to_vec();
         let h_vec = h_vec.to_vec();
@@ -88,6 +90,7 @@ impl SigmaDlProof {
         assert_eq!(self.z_vec.len(), n);
 
         transcript.sigma_dl_domain_sep(n as u64);
+        transcript.append_points_array(b"y_vec", y_vec);
 
         let y_vec = y_vec.to_vec();
         let h_vec = h_vec.to_vec();
@@ -139,7 +142,7 @@ mod test {
             .collect::<Vec<Point<Secp256k1>>>();
         
         let mut verifier = Transcript::new(b"sigmatest");
-        let proof = SigmaDlProof::prove(&mut verifier, &x_vec, &h_vec, n);
+        let proof = SigmaDlProof::prove(&mut verifier, &x_vec, &y_vec, &h_vec, n);
         let mut verifier = Transcript::new(b"sigmatest");
         let result = proof.verify(&mut verifier, &y_vec, &h_vec, n);
         assert!(result.is_ok());

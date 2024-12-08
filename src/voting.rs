@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use ark_ff::{One, Zero};
 use curv::{arithmetic::{Converter, Roots}, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
 use merlin::Transcript;
+use crate::Errors::{self, VotingError};
 use VarRange::proofs::varrange::VarRange;
 
 use crate::{sigma_dl::SigmaDlProof, sigma_dleq::SigmaDleqProof, sum_square::ZkSumSquareArg};
@@ -43,7 +44,12 @@ pub struct BallotWithProof {
 }
 
 // Shanks' baby-step giant-step algorithm, calculate ind_g{B}
-pub fn tally_helper(g: &Point<Secp256k1>, B: &Point<Secp256k1>, bound: &BigInt) -> Scalar<Secp256k1> {
+pub fn tally_helper(
+    g: &Point<Secp256k1>, 
+    B: &Point<Secp256k1>, 
+    bound: &BigInt, 
+    flag: &mut bool
+) -> Scalar<Secp256k1> {
     let n_bn = bound.sqrt();
     let n = &Scalar::<Secp256k1>::from_bigint(&n_bn);
     let mut counter = BigInt::one();
@@ -69,6 +75,7 @@ pub fn tally_helper(g: &Point<Secp256k1>, B: &Point<Secp256k1>, bound: &BigInt) 
         baby = B + g * q.clone();
         if let Some(&ref giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
             res = giant_p.clone();
+            *flag = true;
             break;
         }
         q = q + one;
@@ -129,7 +136,13 @@ impl Voter {
             .collect::<Vec<Point<Secp256k1>>>();
         
         let mut transcript = Transcript::new(b"Proof");
-        let proof_dl = SigmaDlProof::prove(&mut transcript, &x_vec, &h_vec, nc);
+        let proof_dl = SigmaDlProof::prove(
+            &mut transcript, 
+            &x_vec, 
+            &y_vec,
+            &h_vec, 
+            nc
+        );
 
         BulletinBoard.y_vec.push(y_vec.clone());
         
@@ -350,7 +363,7 @@ impl Board {
 
     pub fn tally(
         &self
-    ) -> Vec<Scalar<Secp256k1>> {
+    ) -> Result<Vec<Scalar<Secp256k1>>, Errors> {
         assert_eq!(self.y_vec.len(), self.pp.nv);
         assert_eq!(self.y_vec[0].len(), self.pp.nc);
         assert_eq!(self.pp.g_vec.len(), self.pp.nc);
@@ -363,9 +376,18 @@ impl Board {
             for i in 0..self.pp.nv {
                 Bj = Bj + self.ballot_proof[i].B_vec[j].clone();
             }
-            ballots.push(tally_helper(&self.pp.g_vec[j], &Bj, &BigInt::from((1_u64 << 16) as u64)));
+            let mut flag = false;
+            let mut Bj_scalar = tally_helper(&self.pp.g_vec[j], &Bj, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+            if !flag {
+                Bj_scalar = tally_helper(&(-self.pp.g_vec[j].clone()), &Bj, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+            }
+            if flag {
+                ballots.push(Bj_scalar);
+            } else {
+                return Err(VotingError)
+            }
         }
-        ballots
+        Ok(ballots)
     }
 }
 
@@ -433,7 +455,7 @@ mod test {
         }
         
         board.verify(tokens, &(BigInt::from((nc*2+1) as u32) + seed));
-        let res = board.tally();
+        let res = board.tally().unwrap();
 
         // test correctness
         for j in 0..nc {
@@ -449,7 +471,7 @@ mod test {
     pub fn test_voting_with_verify() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_with_verify(&kzen_label, 1, 512);
+        test_helper_with_verify(&kzen_label, 1, 60);
     }
 
     #[test]
@@ -458,8 +480,13 @@ mod test {
         let kzen_label = BigInt::from_bytes(KZen);
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
-        let scalar = Scalar::<Secp256k1>::from(1000);
+        let scalar = Scalar::<Secp256k1>::from(-1000);
         let point = &g * scalar.clone();
-        assert_eq!(scalar, tally_helper(&g, &point, &BigInt::from((1_u64 << 16) as u64)));
+        let mut flag = false;
+        let mut Bj_scalar = tally_helper(&g, &point, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+        if !flag {
+            Bj_scalar = tally_helper(&(-g), &point, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+        }
+        assert_eq!(scalar, Bj_scalar);
     }
 }
