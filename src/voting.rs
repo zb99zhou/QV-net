@@ -493,8 +493,8 @@ mod test {
                 vi_vec.push(Scalar::<Secp256k1>::from_bigint(&vij));
                 square_sum += vij.clone() * vij;
             }
-            square_sum += BigInt::sample_below(&bound);
-            tokens.push(Scalar::<Secp256k1>::from_bigint(&square_sum));
+            // square_sum += BigInt::sample_below(&bound);
+            tokens.push(Scalar::<Secp256k1>::from_bigint(&(BigInt::from(nc as u64) * bound * bound)));
             Voter_vec[i].vote(&vi_vec, tokens[i].clone(), &mut board, &(BigInt::from((nc*2+1) as u32) + seed));
             v_vec.push(vi_vec);
         }
@@ -519,7 +519,7 @@ mod test {
     pub fn test_voting_with_verify() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_with_verify(&kzen_label, 1, 32, &BigInt::from(128));
+        test_helper_with_verify(&kzen_label, 1, 32, &BigInt::from(1_u64 << 32_u64));
     }
 
     #[test]
