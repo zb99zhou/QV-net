@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
 use std::{collections::HashMap, time::Instant};
-
 use ark_ff::{One, Zero};
 use curv::{arithmetic::{Converter, Roots}, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
 use merlin::Transcript;
@@ -55,7 +54,7 @@ pub fn tally_helper(
     let mut counter = BigInt::one();
     let one = &Scalar::<Secp256k1>::from(1);
     let one_bn = &BigInt::from(1);
-    let mut res = Scalar::<Secp256k1>::zero();
+    let mut res = &Scalar::<Secp256k1>::zero();
 
     let mut p = Scalar::<Secp256k1>::from(1);
     let mut q = Scalar::<Secp256k1>::from(0);
@@ -64,7 +63,7 @@ pub fn tally_helper(
     let mut baby: Point<Secp256k1>;
     
     while counter <= n_bn {
-        giant = g * (p.clone() * n);
+        giant = g * (&p * n);
         giants.insert(giant.x_coord().unwrap().to_bytes(), p.clone());
         p = p + one;
         counter += one_bn;
@@ -72,13 +71,13 @@ pub fn tally_helper(
 
     counter = BigInt::zero();
     while counter <= n_bn {
-        baby = B + g * q.clone();
+        baby = B + g * &q;
         if baby == Point::<Secp256k1>::zero() {
             *flag = true;
             return -q;
         }
-        if let Some(&ref giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
-            res = giant_p.clone();
+        if let Some(giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
+            res = giant_p;
             *flag = true;
             break;
         }
@@ -86,10 +85,10 @@ pub fn tally_helper(
         counter += one_bn;
     }
 
-    if g * (res.clone() * n - q.clone()) == *B {
-        return res * n - q;
+    if g * (res * n - &q) == *B {
+        res * n - q
     } else {
-        return - res * n - q;
+        - res * n - q
     }
 }
 
@@ -137,7 +136,7 @@ impl Voter {
         
         let start = Instant::now();
         let y_vec = (0..nc)
-            .map(|j| &h_vec[j].clone() * x_vec[j].clone())
+            .map(|j| &h_vec[j] * &x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
         println!("Time elapsed in generate yij: {:?}", elapsed);
@@ -192,19 +191,21 @@ impl Voter {
         
         let start = Instant::now();
         let B_vec = (0..BulletinBoard.pp.nc)
-            .map(|j| &BulletinBoard.pp.g_vec[j].clone()*v_vec[j].clone() + &Y_vec[j].clone()*self.x_vec[j].clone())
+            .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
         println!("Time elapsed in generate B_vec: {:?}", elapsed);
 
         let mut u = Scalar::<Secp256k1>::zero();
         for j in 0..BulletinBoard.pp.nc {
-            u = u + v_vec[j].clone() * v_vec[j].clone();
+            u = u + &v_vec[j] * &v_vec[j];
         }
+        let token_bigint = token.to_bigint();
+        assert!(u.to_bigint() <= token_bigint);
 
         let r = Scalar::<Secp256k1>::random();
         let start = Instant::now();
-        let B = &BulletinBoard.pp.g * u.clone() + &BulletinBoard.pp.h * r.clone();
+        let B = &BulletinBoard.pp.g * &u + &BulletinBoard.pp.h * &r;
         let elapsed = start.elapsed();
         println!("Time elapsed in generate B: {:?}", elapsed);
 
@@ -232,7 +233,7 @@ impl Voter {
             &Y_vec, 
             &BulletinBoard.pp.g, 
             &BulletinBoard.pp.h, 
-            &B_vec.clone().into_iter().sum(), 
+            &B_vec.iter().sum(),
             &B, 
             v_vec, 
             &self.x_vec, 
@@ -249,16 +250,15 @@ impl Voter {
         let mut h_extend = Y_vec;
         h_extend.push(BulletinBoard.pp.h.clone());
         let mut v_vec_extend = v_vec.to_vec();
-        v_vec_extend.push(u.clone());
+        v_vec_extend.push(u);
         let mut x_vec_extend = self.x_vec.clone();
         x_vec_extend.push(r);
         let mut B_vec_extend = B_vec.clone();
         B_vec_extend.push(B.clone());
-        let s = BigInt::sqrt(&token.to_bigint());
+        let s = token_bigint.sqrt();
         for j in 0..v_vec_extend.len()-1 {
-            assert!((v_vec_extend[j].clone()+Scalar::<Secp256k1>::from_bigint(&s)).to_bigint() < s.clone() + s.clone());
+            assert!((&v_vec_extend[j] + Scalar::<Secp256k1>::from_bigint(&s)).to_bigint() < &s + &s);
         }
-        assert!(u.to_bigint() <= token.to_bigint());
 
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -366,7 +366,7 @@ impl Board {
                 &Yi_vec,
                 &self.pp.g, 
                 &self.pp.h, 
-                &self.ballot_proof[i].B_vec.clone().into_iter().sum(), 
+                &self.ballot_proof[i].B_vec.iter().sum(),
                 &self.ballot_proof[i].B, 
                 self.pp.nc, 
                 seed
@@ -381,7 +381,7 @@ impl Board {
             hi.push(self.pp.h.clone());
             let mut B_vec = self.ballot_proof[i].B_vec.clone();
             B_vec.push(self.ballot_proof[i].B.clone());
-            let si = BigInt::sqrt(&token[i].clone().to_bigint());
+            let si = token[i].to_bigint().sqrt();
 
             let mut transcript = Transcript::new(b"Proof");
             let start = Instant::now();
@@ -415,7 +415,7 @@ impl Board {
         for j in 0..self.pp.nc {
             let mut Bj = Point::<Secp256k1>::zero();
             for i in 0..self.pp.nv {
-                Bj = Bj + self.ballot_proof[i].B_vec[j].clone();
+                Bj = Bj + &self.ballot_proof[i].B_vec[j];
             }
             let mut flag = false;
             let mut Bj_scalar = tally_helper(&self.pp.g_vec[j], &Bj, bound, &mut flag);
@@ -471,12 +471,10 @@ mod test {
         let g = generate_random_point(&Converter::to_bytes(&hash));
 
         let mut Voter_vec: Vec<Voter> = Vec::new();
-        let mut y_vec: Vec<Vec<Point<Secp256k1>>> = Vec::new();
         let mut board = Board::setup(&g_vec, &h_vec, &g, &h, nv, nc);
         for i in 0..nv {
             let Vi = Voter::gen(i, &h_vec, nv, nc, &mut board);
-            y_vec.push(Vi.y_vec.clone());
-            Voter_vec.push(Vi.clone());
+            Voter_vec.push(Vi);
         }
         
         let order = Scalar::<Secp256k1>::group_order();
@@ -491,7 +489,7 @@ mod test {
                 let sign = if sign == 1 { 1 } else { -1 };
                 let vij = BigInt::mod_mul(&BigInt::sample_below(&bound), &(order + BigInt::from(sign)), order);
                 vi_vec.push(Scalar::<Secp256k1>::from_bigint(&vij));
-                square_sum += vij.clone() * vij;
+                square_sum += &vij * &vij;
             }
             // square_sum += BigInt::sample_below(&bound);
             tokens.push(Scalar::<Secp256k1>::from_bigint(&(BigInt::from(nc as u64) * bound * bound)));
@@ -509,7 +507,7 @@ mod test {
         for j in 0..nc {
             let mut Bj = Scalar::<Secp256k1>::zero();
             for i in 0..nv {
-                Bj = Bj + v_vec[i][j].clone();
+                Bj = Bj + &v_vec[i][j];
             }
             assert_eq!(Bj.to_bigint(), res[j].to_bigint());
         }
@@ -529,11 +527,11 @@ mod test {
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
         let scalar = Scalar::<Secp256k1>::from(-1000);
-        let point = &g * scalar.clone();
+        let point = &g * &scalar;
         let mut flag = false;
-        let mut Bj_scalar = tally_helper(&g, &point, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+        let mut Bj_scalar = tally_helper(&g, &point, &BigInt::from(1_u64 << 16), &mut flag);
         if !flag {
-            Bj_scalar = tally_helper(&(-g), &point, &BigInt::from((1_u64 << 16) as u64), &mut flag);
+            Bj_scalar = tally_helper(&(-g), &point, &BigInt::from(1_u64 << 16), &mut flag);
         }
         assert_eq!(scalar, Bj_scalar);
     }
