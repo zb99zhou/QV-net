@@ -231,7 +231,7 @@ impl Voter {
         let start = Instant::now();
         let proof_eq = SigmaDleqProof::prove(
             &mut transcript,
-            &v_vec, 
+            v_vec, 
             &self.x_vec, 
             &self.y_vec,
             &B_vec,
@@ -449,9 +449,9 @@ mod test {
     use sha2::{Digest, Sha512};
     use rand::Rng;
 
-    use crate::{sigma_dl::generate_random_point, voting::tally_helper};
+    use crate::sigma_dl::generate_random_point;
 
-    use super::{Board, Voter};
+    use super::{tally_helper, Board, Voter};
 
     pub fn test_helper_with_verify(seed: &BigInt, nv: usize, nc: usize, bound: &BigInt) {
         let h_vec = (0..nc)
@@ -475,7 +475,7 @@ mod test {
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let h = generate_random_point(&Converter::to_bytes(&hash));
 
-        let kzen_label =  BigInt::from(1 as u32) + BigInt::from(nc as u32) + BigInt::from(nc as u32) + seed;
+        let kzen_label =  BigInt::from(1_u32) + BigInt::from(nc as u32) + BigInt::from(nc as u32) + seed;
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
 
@@ -496,7 +496,7 @@ mod test {
             for _ in 0..nc {
                 let sign = rng.gen_bool(0.5) as i32;
                 let sign = if sign == 1 { 1 } else { -1 };
-                let vij = BigInt::mod_mul(&BigInt::sample_below(&bound), &(order + BigInt::from(sign)), order);
+                let vij = BigInt::mod_mul(&BigInt::sample_below(bound), &(order + BigInt::from(sign)), order);
                 vi_vec.push(Scalar::<Secp256k1>::from_bigint(&vij));
                 square_sum += &vij * &vij;
             }
