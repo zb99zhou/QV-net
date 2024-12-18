@@ -155,6 +155,22 @@ impl Voter {
         let elapsed = start.elapsed();
         println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
 
+        BulletinBoard.y_vec.push(y_vec.clone());
+
+        Voter {
+            VoterID,
+            x_vec,
+            y_vec,
+            Y_vec: vec![],
+            proof_dl
+        }
+    }
+
+    pub fn precompute(
+        &mut self,
+        VoterID: usize,
+        BulletinBoard: &mut Board,
+    ) {
         let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
         let start = Instant::now();
         for j in 0..BulletinBoard.pp.nc {
@@ -182,16 +198,8 @@ impl Voter {
             Y_vec_with_global.push(Yi_vec);
         }
 
-        BulletinBoard.y_vec.push(y_vec.clone());
         BulletinBoard.Y_vec_with_global = Y_vec_with_global;
-
-        Voter {
-            VoterID,
-            x_vec,
-            y_vec,
-            Y_vec,
-            proof_dl
-        }
+        self.Y_vec = Y_vec;
     }
 
     pub fn vote(
@@ -484,6 +492,9 @@ mod test {
         for i in 0..nv {
             let Vi = Voter::gen(i, &h_vec, nv, nc, &mut board);
             Voter_vec.push(Vi);
+        }
+        for i in 0..nv {
+            Voter_vec[i].precompute(i, &mut board);
         }
         
         let order = Scalar::<Secp256k1>::group_order();
