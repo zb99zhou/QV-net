@@ -14,13 +14,15 @@ pub struct Voter {
     VoterID: usize,
     x_vec: Vec<Scalar<Secp256k1>>,
     y_vec: Vec<Point<Secp256k1>>,
+    Y_vec: Vec<Point<Secp256k1>>,
     proof_dl: SigmaDlProof
 }
 
 pub struct Board {
     pp: PublicParam,
     y_vec: Vec<Vec<Point<Secp256k1>>>,
-    ballot_proof: Vec<BallotWithProof>
+    ballot_proof: Vec<BallotWithProof>,
+    Y_vec_with_global: Vec<Vec<Point<Secp256k1>>>
 }
 
 pub struct PublicParam {
@@ -153,12 +155,41 @@ impl Voter {
         let elapsed = start.elapsed();
         println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
 
+        let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
+        let start = Instant::now();
+        for j in 0..BulletinBoard.pp.nc {
+            for k in 0..VoterID {
+                Y_vec[j] = &Y_vec[j] + &BulletinBoard.y_vec[k][j];
+            }
+            for k in VoterID + 1..BulletinBoard.pp.nv {
+                Y_vec[j] = &Y_vec[j] - &BulletinBoard.y_vec[k][j];
+            }
+        }
+        let elapsed = start.elapsed();
+        println!("Time elapsed in generate Yij: {:?}", elapsed);
+
+        let mut Y_vec_with_global = Vec::with_capacity(BulletinBoard.pp.nv * BulletinBoard.pp.nc);
+        for i in 0..BulletinBoard.pp.nv {
+            let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
+            for j in 0..BulletinBoard.pp.nc {
+                for k in 0..i {
+                    Yi_vec[j] = &Yi_vec[j] + &BulletinBoard.y_vec[k][j];
+                }
+                for k in i + 1..BulletinBoard.pp.nv {
+                    Yi_vec[j] = &Yi_vec[j] - &BulletinBoard.y_vec[k][j];
+                }
+            }
+            Y_vec_with_global.push(Yi_vec);
+        }
+
         BulletinBoard.y_vec.push(y_vec.clone());
-        
+        BulletinBoard.Y_vec_with_global = Y_vec_with_global;
+
         Voter {
             VoterID,
             x_vec,
             y_vec,
+            Y_vec,
             proof_dl
         }
     }
@@ -176,22 +207,9 @@ impl Voter {
         assert_eq!(BulletinBoard.pp.g_vec.len(), BulletinBoard.pp.nc);
         assert_eq!(BulletinBoard.pp.h_vec.len(), BulletinBoard.pp.nc);
 
-        let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
-        let start = Instant::now();
-        for j in 0..BulletinBoard.pp.nc {
-            for k in 0..self.VoterID {
-                Y_vec[j] = &Y_vec[j] + &BulletinBoard.y_vec[k][j];
-            }
-            for k in self.VoterID+1..BulletinBoard.pp.nv {
-                Y_vec[j] = &Y_vec[j] - &BulletinBoard.y_vec[k][j];
-            }
-        }
-        let elapsed = start.elapsed();
-        println!("Time elapsed in generate Yij: {:?}", elapsed);
-        
         let start = Instant::now();
         let B_vec = (0..BulletinBoard.pp.nc)
-            .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &Y_vec[j] * &self.x_vec[j])
+            .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &self.Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
         println!("Time elapsed in generate B_vec: {:?}", elapsed);
@@ -219,7 +237,7 @@ impl Voter {
             &B_vec,
             &BulletinBoard.pp.h_vec, 
             &BulletinBoard.pp.g_vec, 
-            &Y_vec, 
+            &self.Y_vec,
             BulletinBoard.pp.nc
         );
         let elapsed = start.elapsed();
@@ -230,7 +248,7 @@ impl Voter {
         let proof_ss = ZkSumSquareArg::prove(
             &mut transcript, 
             &BulletinBoard.pp.g_vec, 
-            &Y_vec, 
+            &self.Y_vec,
             &BulletinBoard.pp.g, 
             &BulletinBoard.pp.h, 
             &B_vec.iter().sum(),
@@ -247,7 +265,7 @@ impl Voter {
 
         let mut g_extend = BulletinBoard.pp.g_vec.clone();
         g_extend.push(BulletinBoard.pp.g.clone());
-        let mut h_extend = Y_vec;
+        let mut h_extend = self.Y_vec.clone();
         h_extend.push(BulletinBoard.pp.h.clone());
         let mut v_vec_extend = v_vec.to_vec();
         v_vec_extend.push(u);
@@ -304,7 +322,7 @@ impl Board {
         let pp = PublicParam::new(g_vec, h_vec, g, h, nv, nc);
         let ballot_proof: Vec<BallotWithProof> = Vec::with_capacity(nv);
 
-        Board { pp, y_vec, ballot_proof }
+        Board { pp, y_vec, ballot_proof, Y_vec_with_global: vec![] }
     }
 
     pub fn verify(
@@ -320,16 +338,6 @@ impl Board {
         assert_eq!(token.len(), self.pp.nv);
 
         for i in 0..self.pp.nv {
-            let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); self.pp.nc];
-            for j in 0..self.pp.nc {
-                for k in 0..i {
-                    Yi_vec[j] = &Yi_vec[j] + &self.y_vec[k][j];
-                }
-                for k in i+1..self.pp.nv {
-                    Yi_vec[j] = &Yi_vec[j] - &self.y_vec[k][j];
-                }
-            }
-
             // verify the proofs
             let mut transcript = Transcript::new(b"Proof");
             let start = Instant::now();
@@ -351,7 +359,7 @@ impl Board {
                 &self.ballot_proof[i].B_vec, 
                 &self.pp.h_vec, 
                 &self.pp.g_vec, 
-                &Yi_vec, 
+                &self.Y_vec_with_global[i],
                 self.pp.nc
             );
             let elapsed = start.elapsed();
@@ -362,8 +370,8 @@ impl Board {
             let start = Instant::now();
             let res_ss = self.ballot_proof[i].proof_ss.verify(
                 &mut transcript,
-                &self.pp.g_vec, 
-                &Yi_vec,
+                &self.pp.g_vec,
+                &self.Y_vec_with_global[i],
                 &self.pp.g, 
                 &self.pp.h, 
                 &self.ballot_proof[i].B_vec.iter().sum(),
@@ -377,7 +385,7 @@ impl Board {
 
             let mut gi = self.pp.g_vec.clone();
             gi.push(self.pp.g.clone());
-            let mut hi = Yi_vec;
+            let mut hi = self.Y_vec_with_global[i].clone();
             hi.push(self.pp.h.clone());
             let mut B_vec = self.ballot_proof[i].B_vec.clone();
             B_vec.push(self.ballot_proof[i].B.clone());
@@ -397,6 +405,7 @@ impl Board {
             );
             let elapsed = start.elapsed();
             println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
+
             assert!(res_ar.is_ok());
         }
     }
