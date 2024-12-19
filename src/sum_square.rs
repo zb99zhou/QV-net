@@ -197,8 +197,8 @@ impl ZkSumSquareArg {
         // commitment to `R`
         let ra_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
         let C_R = Y_vec.iter().zip(ra_vec.clone()).fold(&g_vec[0] * w.clone(), |acc, x| {
@@ -226,8 +226,8 @@ impl ZkSumSquareArg {
         let mut sum = Fr::from(0);
         // f
         let mut f_fr = Vec::with_capacity(n);
-        for i in 0..n {
-            f_fr.push(Scalar2Fr::<Fr>(&v_vec[i]));
+        for v in v_vec.iter().take(n) {
+            f_fr.push(Scalar2Fr::<Fr>(v));
         }
         // R
         let mut R_fr = vec![Fr::from(0); n];
@@ -241,19 +241,19 @@ impl ZkSumSquareArg {
         let f_f = [f_fr.clone(), f_fr.clone()].to_vec();
         let (product, product_sum) = build_mle_list(f_f, num_variables, 2);
         let coefficient = Fr::from(1);
-        poly.add_mle_list(product.into_iter(), coefficient).unwrap();
+        poly.add_mle_list(product, coefficient).unwrap();
         sum += product_sum * coefficient;
         // 2 * f * R * Z
         let f_R_Z = [f_fr, R_fr.clone(), Z0.clone(), Z1.clone()].to_vec();
         let (product, product_sum) = build_mle_list(f_R_Z, num_variables, 4);
         let coefficient = Fr::from(2);
-        poly.add_mle_list(product.into_iter(), coefficient).unwrap();
+        poly.add_mle_list(product, coefficient).unwrap();
         sum += product_sum * coefficient;
         // R * Z * R * Z
         let R_Z_R_Z = [R_fr.clone(), Z0.clone(), Z1.clone(), R_fr, Z0.clone(), Z1.clone()].to_vec();
         let (product, product_sum) = build_mle_list(R_Z_R_Z, num_variables, 6);
         let coefficient = Fr::from(1);
-        poly.add_mle_list(product.into_iter(), coefficient).unwrap();
+        poly.add_mle_list(product, coefficient).unwrap();
         sum += product_sum * coefficient;
 
         assert_eq!(Fr2Scalar(&sum), *u);
@@ -271,7 +271,7 @@ impl ZkSumSquareArg {
         let Z = [Z0, Z1].to_vec();
         let (product, _) = build_mle_list(Z, num_variables, 2);
         let coefficient = Fr::from(1);
-        Z_poly.add_mle_list(product.into_iter(), coefficient).unwrap();
+        Z_poly.add_mle_list(product, coefficient).unwrap();
         let Z_r: Fr = Z_poly.evaluate(&challenge_points).unwrap();
         let Z_r = Fr2Scalar(&Z_r);
 
@@ -416,7 +416,7 @@ impl ZkSumSquareArg {
         let Z = [Z0, Z1].to_vec();
         let (product, _) = build_mle_list(Z, num_variables, 2);
         let coefficient = Fr::from(1);
-        Z_poly.add_mle_list(product.into_iter(), coefficient).unwrap();
+        Z_poly.add_mle_list(product, coefficient).unwrap();
         let Z_r: Fr = Z_poly.evaluate(&challenge_points).unwrap();
         let Z_r = Fr2Scalar(&Z_r);
 
@@ -444,8 +444,8 @@ impl ZkSumSquareArg {
         // get `r_star`
         let mut b_vec = Vec::with_capacity(6*num_variables+2);
         b_vec.push(BigInt::from(1));
-        for i in 0..challenge_points.len() {
-            let temp = Fr2Scalar(&challenge_points[i]).to_bigint();
+        for challenge in challenge_points.iter() {
+            let temp = Fr2Scalar(challenge).to_bigint();
             for j in 1..7 {
                 let temp_power = BigInt::mod_pow(&temp, &BigInt::from(j), order);
                 b_vec.push(temp_power);
@@ -514,21 +514,21 @@ mod test {
 
         let v_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
 
         let x_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
 
         let mut u = Scalar::<Secp256k1>::zero();
-        for i in 0..n {
-            u = u + v_vec[i].clone() * v_vec[i].clone();
+        for v in v_vec.iter().take(n) {
+            u = u + v * v;
         }
 
         let r = Scalar::<Secp256k1>::random();
