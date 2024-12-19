@@ -19,7 +19,10 @@ pub fn pad_bn_to_power_of_two(bn_vec: &mut Vec<BigInt>) {
 
 pub fn pad_scalar_to_power_of_two(scalar_vec: &mut Vec<Scalar<Secp256k1>>) {
     let current_len = scalar_vec.len();
-    let target_len = current_len.next_power_of_two();
+    let mut target_len = current_len.next_power_of_two();
+    if target_len == 1 {
+        target_len = 2;
+    }
     for _ in current_len..target_len {
         scalar_vec.push(Scalar::<Secp256k1>::zero());
     }
@@ -28,7 +31,10 @@ pub fn pad_scalar_to_power_of_two(scalar_vec: &mut Vec<Scalar<Secp256k1>>) {
 // pad vectors over the group with random point
 pub fn pad_point_to_power_of_two(P_vec: &mut Vec<Point<Secp256k1>>, seed: &BigInt) {
     let current_len = P_vec.len();
-    let target_len = current_len.next_power_of_two();
+    let mut target_len = current_len.next_power_of_two();
+    if target_len == 1 {
+        target_len = 2;
+    }
     for i in current_len..target_len {
         let kzen_label_i = BigInt::from(i as u32) + seed;
         let hash_i = Sha512::new().chain_bigint(&kzen_label_i).result_bigint();

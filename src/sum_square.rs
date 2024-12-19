@@ -117,7 +117,10 @@ impl ZkSumSquareArg {
         pad_point_to_power_of_two(&mut Y_vec, &(seed+BigInt::from((g_vec.len()) as u64)));
         pad_scalar_to_power_of_two(&mut v_vec);
         pad_scalar_to_power_of_two(&mut x_vec);
-        let n = n.next_power_of_two();
+        let mut n = n.next_power_of_two();
+        if n == 1 {
+            n = 2;
+        }
         let seed = &(seed+BigInt::from((2*g_vec.len()) as u64));
 
         let num_variables = (n as f64).log2() as usize;
@@ -358,7 +361,10 @@ impl ZkSumSquareArg {
         let mut Y_vec = Y_vec.to_vec();
         pad_point_to_power_of_two(&mut g_vec, seed);
         pad_point_to_power_of_two(&mut Y_vec, &(seed+BigInt::from((g_vec.len()) as u64)));
-        let n = n.next_power_of_two();
+        let mut n = n.next_power_of_two();
+        if n == 1 {
+            n = 2;
+        }
         let seed = &(seed+BigInt::from((2*g_vec.len()) as u64));
 
         let num_variables = (n as f64).log2() as usize;

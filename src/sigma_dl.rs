@@ -100,7 +100,7 @@ impl SigmaDlProof {
 
         let mut flag = true;
         for j in 0..n {
-            if &h_vec[j].clone() * self.z_vec[j].clone() != self.R_vec[j].clone() + challenge_e.clone() * y_vec[j].clone() {
+            if &h_vec[j] * &self.z_vec[j] != &self.R_vec[j] + &challenge_e * &y_vec[j] {
                 flag = false;
                 break;
             }
