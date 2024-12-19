@@ -132,8 +132,8 @@ mod test {
 
         let x_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
 

@@ -71,6 +71,6 @@ impl TranscriptProtocol for Transcript {
         
         let order = Scalar::<Secp256k1>::group_order();
         let bn = BigInt::from_bytes(&buf);
-        Scalar::<Secp256k1>::from_bigint(&BigInt::modulus(&bn, &order))
+        Scalar::<Secp256k1>::from_bigint(&BigInt::modulus(&bn, order))
     }
 }

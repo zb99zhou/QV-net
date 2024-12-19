@@ -292,7 +292,7 @@ impl ZkEval {
         let challenge_c: Scalar<Secp256k1> = transcript.challenge_scalar(b"c");
 
         let kzen_label = &(seed + BigInt::from((g_vec.len()) as u64));
-        let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
+        let hash = Sha512::new().chain_bigint(kzen_label).result_bigint();
         let q = generate_random_point(&Converter::to_bytes(&hash));
 
         let A_vec: Vec<Point<Secp256k1>> = Vec::with_capacity(n);
@@ -328,7 +328,7 @@ impl ZkEval {
         let s_fe = Scalar::<Secp256k1>::from_bigint(&self.s);
 
         let kzen_label = &(seed + BigInt::from((g_vec.len()) as u64));
-        let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
+        let hash = Sha512::new().chain_bigint(kzen_label).result_bigint();
         let q = generate_random_point(&Converter::to_bytes(&hash));
         let q_c = &q * challenge_c;
         let q_c_s_plus_et = &q_c * (s_fe + challenge_e.clone() * Scalar::<Secp256k1>::from_bigint(&self.t));
@@ -355,15 +355,15 @@ mod test {
 
         let a_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
 
         let b_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                let rand = Scalar::<Secp256k1>::random();
-                rand
+                
+                Scalar::<Secp256k1>::random()
             })
             .collect();
 
