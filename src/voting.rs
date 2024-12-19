@@ -140,7 +140,7 @@ impl Voter {
             .map(|j| &h_vec[j] * &x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate yij: {:?}", elapsed);
+        println!("Time elapsed in generate yij: {:?}", elapsed);
         
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -152,7 +152,7 @@ impl Voter {
             nc
         );
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
+        println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
 
         BulletinBoard.y_vec.push(y_vec.clone());
 
@@ -219,7 +219,7 @@ impl Voter {
             .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &self.Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate B_vec: {:?}", elapsed);
+        println!("Time elapsed in generate B_vec: {:?}", elapsed);
 
         let mut u = Scalar::<Secp256k1>::zero();
         for j in 0..BulletinBoard.pp.nc {
@@ -232,7 +232,7 @@ impl Voter {
         let start = Instant::now();
         let B = &BulletinBoard.pp.g * &u + &BulletinBoard.pp.h * &r;
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate B: {:?}", elapsed);
+        println!("Time elapsed in generate B: {:?}", elapsed);
 
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -248,7 +248,7 @@ impl Voter {
             BulletinBoard.pp.nc
         );
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate pi_i^eq: {:?}", elapsed);
+        println!("Time elapsed in generate pi_i^eq: {:?}", elapsed);
 
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -268,7 +268,7 @@ impl Voter {
             seed
         );
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate pi_i^ss: {:?}", elapsed);
+        println!("Time elapsed in generate pi_i^ss: {:?}", elapsed);
 
         let mut g_extend = BulletinBoard.pp.g_vec.clone();
         g_extend.push(BulletinBoard.pp.g.clone());
@@ -290,9 +290,9 @@ impl Voter {
         x_vec_extend.push(r_new.clone());
         let mut B_vec_extend = B_vec.clone();
         B_vec_extend.push(B_new.clone());
-        let s = BigInt::sqrt(&token.to_bigint());
+        let s = token_bigint.sqrt();
         for j in 0..v_vec_extend.len()-1 {
-            assert!((&v_vec_extend[j] + Scalar::<Secp256k1>::from_bigint(&s)).to_bigint() < &s + &s);
+            assert!((&v_vec_extend[j] + Scalar::<Secp256k1>::from_bigint(&s)).to_bigint() <= &s + &s);
         }
         assert_eq!(&BulletinBoard.pp.g * u_new.clone() + &BulletinBoard.pp.h * r_new.clone(), B_new);
         assert!(u_new.to_bigint() <= token_new.to_bigint());
@@ -312,7 +312,7 @@ impl Voter {
             seed
         );
         let elapsed = start.elapsed();
-        // println!("Time elapsed in generate pi_i^ar: {:?}", elapsed);
+        println!("Time elapsed in generate pi_i^ar: {:?}", elapsed);
 
         let ballot_proof = BallotWithProof {
             B_vec,
@@ -367,7 +367,7 @@ impl Board {
                 self.pp.nc
             );
             let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
+            println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
             assert!(res_dl.is_ok());
             
             let mut transcript = Transcript::new(b"Proof");
@@ -382,7 +382,7 @@ impl Board {
                 self.pp.nc
             );
             let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^dleq: {:?}", elapsed);
+            println!("Time elapsed in verify pi_i^dleq: {:?}", elapsed);
             assert!(res_dleq.is_ok());
 
             let mut transcript = Transcript::new(b"Proof");
@@ -399,7 +399,7 @@ impl Board {
                 seed
             );
             let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
+            println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
             assert!(res_ss.is_ok());
 
             let mut gi = self.pp.g_vec.clone();
@@ -539,7 +539,7 @@ mod test {
         let start = Instant::now();
         let res = board.tally(&(&bound * BigInt::from(nv as u64))).unwrap();
         let elapsed = start.elapsed();
-        // println!("Time elapsed in tally: {:?}", elapsed);
+        println!("Time elapsed in tally: {:?}", elapsed);
 
         // test correctness
         for j in 0..nc {
@@ -556,10 +556,10 @@ mod test {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
         
-        for _i in 0..5 {
-           test_helper_with_verify(&kzen_label, 2, 1, &BigInt::from(1 << 3));
-        }
-        // test_helper_with_verify(&kzen_label, 2, 20, &BigInt::from(100));
+        // for _i in 0..5 {
+        //    test_helper_with_verify(&kzen_label, 2, 3, &BigInt::from(1));
+        // }
+        test_helper_with_verify(&kzen_label, 2, 20, &BigInt::from(100));
     }
 
     #[test]
