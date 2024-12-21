@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
-use std::{collections::HashMap, time::Instant};
+use crate::Errors::{self, VotingError};
 use ark_ff::{One, Zero};
 use curv::{arithmetic::{Converter, Roots}, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
 use merlin::Transcript;
-use crate::Errors::{self, VotingError};
+use std::{collections::HashMap, time::Instant};
 use VarRange::proofs::varrange::VarRange;
 
 use crate::{sigma_dl::SigmaDlProof, sigma_dleq::SigmaDleqProof, sum_square::ZkSumSquareArg};
@@ -13,13 +13,15 @@ pub struct Voter {
     VoterID: usize,
     x_vec: Vec<Scalar<Secp256k1>>,
     y_vec: Vec<Point<Secp256k1>>,
+    Y_vec: Vec<Point<Secp256k1>>,
     proof_dl: SigmaDlProof
 }
 
 pub struct Board {
     pp: PublicParam,
     y_vec: Vec<Vec<Point<Secp256k1>>>,
-    ballot_proof: Vec<BallotWithProof>
+    ballot_proof: Vec<BallotWithProof>,
+    Y_vec_with_global: Vec<Vec<Point<Secp256k1>>>
 }
 
 pub struct PublicParam {
@@ -158,8 +160,49 @@ impl Voter {
             VoterID,
             x_vec,
             y_vec,
+            Y_vec: vec![],
             proof_dl
         }
+    }
+
+    pub fn precompute_for_prove(
+        &mut self,
+        VoterID: usize,
+        BulletinBoard: &Board,
+    ) {
+        let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
+        let start = Instant::now();
+        for j in 0..BulletinBoard.pp.nc {
+            for k in 0..VoterID {
+                Y_vec[j] = &Y_vec[j] + &BulletinBoard.y_vec[k][j];
+            }
+            for k in VoterID + 1..BulletinBoard.pp.nv {
+                Y_vec[j] = &Y_vec[j] - &BulletinBoard.y_vec[k][j];
+            }
+        }
+        let elapsed = start.elapsed();
+        println!("Time elapsed in generate Yij: {:?}", elapsed);
+        self.Y_vec = Y_vec;
+    }
+
+    pub fn precompute_for_verify(
+        &mut self,
+        BulletinBoard: &mut Board,
+    ) {
+        let mut Y_vec_with_global = Vec::with_capacity(BulletinBoard.pp.nv * BulletinBoard.pp.nc);
+        for i in 0..BulletinBoard.pp.nv {
+            let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
+            for j in 0..BulletinBoard.pp.nc {
+                for k in 0..i {
+                    Yi_vec[j] = &Yi_vec[j] + &BulletinBoard.y_vec[k][j];
+                }
+                for k in i + 1..BulletinBoard.pp.nv {
+                    Yi_vec[j] = &Yi_vec[j] - &BulletinBoard.y_vec[k][j];
+                }
+            }
+            Y_vec_with_global.push(Yi_vec);
+        }
+        BulletinBoard.Y_vec_with_global = Y_vec_with_global;
     }
 
     pub fn vote(
@@ -175,22 +218,9 @@ impl Voter {
         assert_eq!(BulletinBoard.pp.g_vec.len(), BulletinBoard.pp.nc);
         assert_eq!(BulletinBoard.pp.h_vec.len(), BulletinBoard.pp.nc);
 
-        let mut Y_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); BulletinBoard.pp.nc];
-        let start = Instant::now();
-        for j in 0..BulletinBoard.pp.nc {
-            for k in 0..self.VoterID {
-                Y_vec[j] = &Y_vec[j] + &BulletinBoard.y_vec[k][j];
-            }
-            for k in self.VoterID+1..BulletinBoard.pp.nv {
-                Y_vec[j] = &Y_vec[j] - &BulletinBoard.y_vec[k][j];
-            }
-        }
-        let elapsed = start.elapsed();
-        // println!("Time elapsed in generate Yij: {:?}", elapsed);
-
         let start = Instant::now();
         let B_vec = (0..BulletinBoard.pp.nc)
-            .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &Y_vec[j] * &self.x_vec[j])
+            .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &self.Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
         // println!("Time elapsed in generate B_vec: {:?}", elapsed);
@@ -218,7 +248,7 @@ impl Voter {
             &B_vec,
             &BulletinBoard.pp.h_vec, 
             &BulletinBoard.pp.g_vec, 
-            &Y_vec,
+            &self.Y_vec,
             BulletinBoard.pp.nc
         );
         let elapsed = start.elapsed();
@@ -229,7 +259,7 @@ impl Voter {
         let proof_ss = ZkSumSquareArg::prove(
             &mut transcript, 
             &BulletinBoard.pp.g_vec, 
-            &Y_vec,
+            &self.Y_vec,
             &BulletinBoard.pp.g, 
             &BulletinBoard.pp.h, 
             &B_vec.iter().sum(),
@@ -246,7 +276,7 @@ impl Voter {
 
         let mut g_extend = BulletinBoard.pp.g_vec.clone();
         g_extend.push(BulletinBoard.pp.g.clone());
-        let mut h_extend = Y_vec.clone();
+        let mut h_extend = self.Y_vec.clone();
         h_extend.push(BulletinBoard.pp.h.clone());
         let mut v_vec_extend = v_vec.to_vec();
         let mut token_new: Scalar<Secp256k1> = token.clone();
@@ -315,10 +345,27 @@ impl Board {
         let pp = PublicParam::new(g_vec, h_vec, g, h, nv, nc);
         let ballot_proof: Vec<BallotWithProof> = Vec::with_capacity(nv);
 
-        Board { pp, y_vec, ballot_proof }
+        Board { pp, y_vec, ballot_proof, Y_vec_with_global: vec![] }
     }
 
-    pub fn verify(
+    pub fn precompute_for_verify(&mut self) {
+        let mut Y_vec_with_global = Vec::with_capacity(self.pp.nv * self.pp.nc);
+        for i in 0..self.pp.nv {
+            let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); self.pp.nc];
+            for j in 0..self.pp.nc {
+                for k in 0..i {
+                    Yi_vec[j] = &Yi_vec[j] + &self.y_vec[k][j];
+                }
+                for k in i + 1..self.pp.nv {
+                    Yi_vec[j] = &Yi_vec[j] - &self.y_vec[k][j];
+                }
+            }
+            Y_vec_with_global.push(Yi_vec);
+        }
+        self.Y_vec_with_global = Y_vec_with_global;
+    }
+
+    pub fn batch_verify(
         &self,
         token: Vec<Scalar<Secp256k1>>,
         seed: &BigInt
@@ -330,93 +377,92 @@ impl Board {
         assert_eq!(self.ballot_proof.len(), self.pp.nv);
         assert_eq!(token.len(), self.pp.nv);
 
-        for i in 0..self.pp.nv {
-            let mut Yi_vec: Vec<Point<Secp256k1>> = vec![Point::<Secp256k1>::zero(); self.pp.nc];
-            for j in 0..self.pp.nc {
-                for k in 0..i {
-                    Yi_vec[j] = &Yi_vec[j] + &self.y_vec[k][j];
-                }
-                for k in i+1..self.pp.nv {
-                    Yi_vec[j] = &Yi_vec[j] - &self.y_vec[k][j];
-                }
-            }
-
-            // verify the proofs
-            let mut transcript = Transcript::new(b"Proof");
-            let start = Instant::now();
-            let res_dl = self.ballot_proof[i].proof_dl.verify(
-                &mut transcript, 
-                &self.y_vec[i], 
-                &self.pp.h_vec, 
-                self.pp.nc
-            );
-            let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
-            assert!(res_dl.is_ok());
-            
-            let mut transcript = Transcript::new(b"Proof");
-            let start = Instant::now();
-            let res_dleq = self.ballot_proof[i].proof_eq.verify(
-                &mut transcript, 
-                &self.y_vec[i], 
-                &self.ballot_proof[i].B_vec, 
-                &self.pp.h_vec, 
-                &self.pp.g_vec, 
-                &Yi_vec,
-                self.pp.nc
-            );
-            let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^eq: {:?}", elapsed);
-            assert!(res_dleq.is_ok());
-
-            let mut transcript = Transcript::new(b"Proof");
-            let start = Instant::now();
-            let res_ss = self.ballot_proof[i].proof_ss.verify(
-                &mut transcript,
-                &self.pp.g_vec,
-                &Yi_vec,
-                &self.pp.g, 
-                &self.pp.h, 
-                &self.ballot_proof[i].B_vec.iter().sum(),
-                &self.ballot_proof[i].B, 
-                self.pp.nc, 
-                seed
-            );
-            let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
-            assert!(res_ss.is_ok());
-
-            let mut gi = self.pp.g_vec.clone();
-            gi.push(self.pp.g.clone());
-            let mut hi = Yi_vec;
-            hi.push(self.pp.h.clone());
-            let mut B_vec = self.ballot_proof[i].B_vec.clone();
-            let mut token_new: Scalar<Secp256k1> = token[i].clone();
-            let mut B_new: Point<Secp256k1> = self.ballot_proof[i].B.clone();
-            if token[i] == Scalar::<Secp256k1>::from(1) {
-                token_new = &token[i] * Scalar::<Secp256k1>::from(2);
-                B_new = &self.ballot_proof[i].B * Scalar::<Secp256k1>::from(2);
-            }
-            B_vec.push(B_new);
-            let si = BigInt::sqrt(&token[i].clone().to_bigint());
-
-            let mut transcript = Transcript::new(b"Proof");
-            let start = Instant::now();
-            let res_ar = self.ballot_proof[i].proof_ar.range_verify(
-                &mut transcript, 
-                &gi, 
-                &hi,
-                &B_vec, 
-                Scalar::<Secp256k1>::from_bigint(&si), 
-                token_new, 
-                self.pp.nc,
-                seed
-            );
-            let elapsed = start.elapsed();
-            // println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
-
-            assert!(res_ar.is_ok());
+        for voteId in 0..self.pp.nv {
+            self.verify_single_ballot(&token[voteId], seed, voteId)
         }
+    }
+    
+    pub fn verify_single_ballot(
+        &self,
+        token: &Scalar<Secp256k1>,
+        seed: &BigInt,
+        voteId: usize,
+    ) {
+        // verify the proofs
+        let mut transcript = Transcript::new(b"Proof");
+        let start = Instant::now();
+        let res_dl = self.ballot_proof[voteId].proof_dl.verify(
+            &mut transcript,
+            &self.y_vec[voteId],
+            &self.pp.h_vec,
+            self.pp.nc
+        );
+        let elapsed = start.elapsed();
+        println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
+        assert!(res_dl.is_ok());
+
+        let mut transcript = Transcript::new(b"Proof");
+        let start = Instant::now();
+        let res_dleq = self.ballot_proof[voteId].proof_eq.verify(
+            &mut transcript,
+            &self.y_vec[voteId],
+            &self.ballot_proof[voteId].B_vec,
+            &self.pp.h_vec,
+            &self.pp.g_vec,
+            &self.Y_vec_with_global[voteId],
+            self.pp.nc
+        );
+        let elapsed = start.elapsed();
+        println!("Time elapsed in verify pi_i^dleq: {:?}", elapsed);
+        assert!(res_dleq.is_ok());
+
+        let mut transcript = Transcript::new(b"Proof");
+        let start = Instant::now();
+        let res_ss = self.ballot_proof[voteId].proof_ss.verify(
+            &mut transcript,
+            &self.pp.g_vec,
+            &self.Y_vec_with_global[voteId],
+            &self.pp.g,
+            &self.pp.h,
+            &self.ballot_proof[voteId].B_vec.iter().sum(),
+            &self.ballot_proof[voteId].B,
+            self.pp.nc,
+            seed
+        );
+        let elapsed = start.elapsed();
+        println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
+        assert!(res_ss.is_ok());
+
+        let mut gi = self.pp.g_vec.clone();
+        gi.push(self.pp.g.clone());
+        let mut hi = self.Y_vec_with_global[voteId].clone();
+        hi.push(self.pp.h.clone());
+        let mut B_vec = self.ballot_proof[voteId].B_vec.clone();
+        let mut token_new: Scalar<Secp256k1> = token.clone();
+        let mut B_new: Point<Secp256k1> = self.ballot_proof[voteId].B.clone();
+        if token == &Scalar::<Secp256k1>::from(1) {
+            token_new = token * Scalar::<Secp256k1>::from(2);
+            B_new = &self.ballot_proof[voteId].B * Scalar::<Secp256k1>::from(2);
+        }
+        B_vec.push(B_new);
+        let si = BigInt::sqrt(&token.to_bigint());
+
+        let mut transcript = Transcript::new(b"Proof");
+        let start = Instant::now();
+        let res_ar = self.ballot_proof[voteId].proof_ar.range_verify(
+            &mut transcript,
+            &gi,
+            &hi,
+            &B_vec,
+            Scalar::<Secp256k1>::from_bigint(&si),
+            token_new,
+            self.pp.nc,
+            seed
+        );
+        let elapsed = start.elapsed();
+        println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
+
+        assert!(res_ar.is_ok());
     }
 
     pub fn tally(
@@ -483,6 +529,7 @@ mod test {
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let h = generate_random_point(&Converter::to_bytes(&hash));
 
+        // Voting init setup
         let kzen_label =  BigInt::from(1_u32) + BigInt::from(nc as u32) + BigInt::from(nc as u32) + seed;
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
@@ -493,7 +540,14 @@ mod test {
             let Vi = Voter::gen(i, &h_vec, nv, nc, &mut board);
             Voter_vec.push(Vi);
         }
-        
+
+        // Voting precompute
+        for i in 0..nv {
+            Voter_vec[i].precompute_for_prove(i, &board);
+        }
+        board.precompute_for_verify();
+
+        // Voting prove
         let order = Scalar::<Secp256k1>::group_order();
         let mut v_vec: Vec<Vec<Scalar<Secp256k1>>> = Vec::new();
         let mut tokens: Vec<Scalar<Secp256k1>> = Vec::new();
@@ -513,8 +567,9 @@ mod test {
             Voter_vec[i].vote(&vi_vec, tokens[i].clone(), &mut board, &(BigInt::from((nc*2+1) as u32) + seed));
             v_vec.push(vi_vec);
         }
-        
-        board.verify(tokens, &(BigInt::from((nc*2+1) as u32) + seed));
+
+        // Voting verify
+        board.batch_verify(tokens, &(BigInt::from((nc*2+1) as u32) + seed));
         let start = Instant::now();
         let res = board.tally(&(&bound * BigInt::from(nv as u64))).unwrap();
         let elapsed = start.elapsed();
