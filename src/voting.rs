@@ -138,7 +138,7 @@ impl Voter {
             .map(|j| &h_vec[j] * &x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate yij: {:?}", elapsed);
+        // println!("Time elapsed in generate yij: {:?}", elapsed);
         
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -150,7 +150,7 @@ impl Voter {
             nc
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
+        // println!("Time elapsed in generate pi_i^dl: {:?}", elapsed);
 
         BulletinBoard.y_vec.push(y_vec.clone());
 
@@ -186,14 +186,14 @@ impl Voter {
             }
         }
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate Yij: {:?}", elapsed);
+        // println!("Time elapsed in generate Yij: {:?}", elapsed);
 
         let start = Instant::now();
         let B_vec = (0..BulletinBoard.pp.nc)
             .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate B_vec: {:?}", elapsed);
+        // println!("Time elapsed in generate B_vec: {:?}", elapsed);
 
         let mut u = Scalar::<Secp256k1>::zero();
         for j in 0..BulletinBoard.pp.nc {
@@ -206,7 +206,7 @@ impl Voter {
         let start = Instant::now();
         let B = &BulletinBoard.pp.g * &u + &BulletinBoard.pp.h * &r;
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate B: {:?}", elapsed);
+        // println!("Time elapsed in generate B: {:?}", elapsed);
 
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -222,7 +222,7 @@ impl Voter {
             BulletinBoard.pp.nc
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate pi_i^eq: {:?}", elapsed);
+        // println!("Time elapsed in generate pi_i^eq: {:?}", elapsed);
 
         let mut transcript = Transcript::new(b"Proof");
         let start = Instant::now();
@@ -242,7 +242,7 @@ impl Voter {
             seed
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate pi_i^ss: {:?}", elapsed);
+        // println!("Time elapsed in generate pi_i^ss: {:?}", elapsed);
 
         let mut g_extend = BulletinBoard.pp.g_vec.clone();
         g_extend.push(BulletinBoard.pp.g.clone());
@@ -286,7 +286,7 @@ impl Voter {
             seed
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate pi_i^ar: {:?}", elapsed);
+        // println!("Time elapsed in generate pi_i^ar: {:?}", elapsed);
 
         let ballot_proof = BallotWithProof {
             B_vec,
@@ -351,7 +351,7 @@ impl Board {
                 self.pp.nc
             );
             let elapsed = start.elapsed();
-            println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
+            // println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
             assert!(res_dl.is_ok());
             
             let mut transcript = Transcript::new(b"Proof");
@@ -366,7 +366,7 @@ impl Board {
                 self.pp.nc
             );
             let elapsed = start.elapsed();
-            println!("Time elapsed in verify pi_i^dleq: {:?}", elapsed);
+            // println!("Time elapsed in verify pi_i^eq: {:?}", elapsed);
             assert!(res_dleq.is_ok());
 
             let mut transcript = Transcript::new(b"Proof");
@@ -383,7 +383,7 @@ impl Board {
                 seed
             );
             let elapsed = start.elapsed();
-            println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
+            // println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
             assert!(res_ss.is_ok());
 
             let mut gi = self.pp.g_vec.clone();
@@ -413,7 +413,7 @@ impl Board {
                 seed
             );
             let elapsed = start.elapsed();
-            println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
+            // println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
 
             assert!(res_ar.is_ok());
         }
@@ -535,10 +535,10 @@ mod test {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
         
-        // for _i in 0..5 {
-        //    test_helper_with_verify(&kzen_label, 2, 3, &BigInt::from(1));
-        // }
-        test_helper_with_verify(&kzen_label, 50, 4, &BigInt::from(1));
+        for _i in 0..15 {
+           test_helper_with_verify(&kzen_label, 857, 4, &BigInt::from(1_600_000));
+        }
+        // test_helper_with_verify(&kzen_label, 2800, 15, &BigInt::from(1_200_000));
     }
 
     #[test]
@@ -547,13 +547,25 @@ mod test {
         let kzen_label = BigInt::from_bytes(KZen);
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
-        let scalar = Scalar::<Secp256k1>::from((110000) as u64);
-        let point = &g * scalar.clone();
-        let mut flag = false;
-        let mut Bj_scalar = tally_helper(&g, &point, &BigInt::from((1100000) as u64), &mut flag);
-        if !flag {
-            Bj_scalar = tally_helper(&(-g), &point, &BigInt::from((1100000) as u64), &mut flag);
+        
+        for exp in 20..=60 {
+            let scalar_value = 2_u64.pow(exp);
+            let scalar = Scalar::<Secp256k1>::from(scalar_value);
+
+            let point = &g * scalar.clone();
+    
+            let mut flag = true;
+            let start = Instant::now();
+            let Bj_scalar = tally_helper(&g, &point, &BigInt::from(scalar_value), &mut flag);
+            let elapsed = start.elapsed();
+            println!(
+                "Time elapsed in Shanks for scalar 2^{}: {:?}",
+                exp, elapsed
+            );
+            // if !flag {
+            //     Bj_scalar = tally_helper(&(-g), &point, &BigInt::from((1100000) as u64), &mut flag);
+            // }
+            assert_eq!(scalar, Bj_scalar);
         }
-        assert_eq!(scalar, Bj_scalar);
     }
 }
