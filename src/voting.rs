@@ -63,11 +63,18 @@ pub fn tally_helper(
     let mut giant: Point<Secp256k1>;
     let mut baby: Point<Secp256k1>;
     
+    
+    // let mut giant_step_count = 0; 
+    // let mut baby_step_count = 0;  
+
     while counter <= n_bn {
         giant = g * (&p * n);
         giants.insert(giant.x_coord().unwrap().to_bytes(), p.clone());
         p = p + one;
         counter += one_bn;
+
+        // increase Giant-step times
+        // giant_step_count += 1;
     }
 
     counter = BigInt::zero();
@@ -75,6 +82,10 @@ pub fn tally_helper(
         baby = B + g * &q;
         if baby == Point::<Secp256k1>::zero() {
             *flag = true;
+
+            // println!("Giant-step executed: {}", giant_step_count);
+            // println!("Baby-step executed: {}", baby_step_count);
+
             return -q;
         }
         if let Some(giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
@@ -84,7 +95,13 @@ pub fn tally_helper(
         }
         q = q + one;
         counter += one_bn;
+
+        // increase Baby-step times
+        // baby_step_count += 1;
     }
+
+    // println!("Giant-step executed: {}", giant_step_count);
+    // println!("Baby-step executed: {}", baby_step_count);
 
     if g * (res * n - &q) == *B {
         res * n - q
@@ -181,7 +198,7 @@ impl Voter {
             }
         }
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate Yij: {:?}", elapsed);
+        // println!("Time elapsed in generate Yij: {:?}", elapsed);
         self.Y_vec = Y_vec;
     }
 
@@ -398,7 +415,7 @@ impl Board {
             self.pp.nc
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
+        // println!("Time elapsed in verify pi_i^dl: {:?}", elapsed);
         assert!(res_dl.is_ok());
 
         let mut transcript = Transcript::new(b"Proof");
@@ -413,7 +430,7 @@ impl Board {
             self.pp.nc
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in verify pi_i^dleq: {:?}", elapsed);
+        // println!("Time elapsed in verify pi_i^eq: {:?}", elapsed);
         assert!(res_dleq.is_ok());
 
         let mut transcript = Transcript::new(b"Proof");
@@ -430,7 +447,7 @@ impl Board {
             seed
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
+        // println!("Time elapsed in verify pi_i^ss: {:?}", elapsed);
         assert!(res_ss.is_ok());
 
         let mut gi = self.pp.g_vec.clone();
@@ -460,7 +477,7 @@ impl Board {
             seed
         );
         let elapsed = start.elapsed();
-        println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
+        // println!("Time elapsed in verify pi_i^ar: {:?}", elapsed);
 
         assert!(res_ar.is_ok());
     }
@@ -500,7 +517,7 @@ mod test {
     use std::time::Instant;
 
     use ark_ff::Zero;
-    use curv::{arithmetic::{Converter, Modulo, Roots}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
+    use curv::{arithmetic::{BasicOps, Converter, Modulo, Roots}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
     use sha2::{Digest, Sha512};
 
     use crate::sigma_dl::generate_random_point;
@@ -590,10 +607,59 @@ mod test {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
         
-        for _i in 0..15 {
-           test_helper_with_verify(&kzen_label, 857, 4, &BigInt::from(1_600_000));
+        // test_helper_with_verify(&kzen_label, 10, 10, &BigInt::from(1_200_000));
+
+        for _i in 0..1 {
+           test_helper_with_verify(&kzen_label, 2, 1, &BigInt::from(1 << 14));
         }
-        // test_helper_with_verify(&kzen_label, 2800, 15, &BigInt::from(1_200_000));
+
+        // test when varying nc
+        /* 
+        for i in 1..=20 {
+            println!("nc = {}", i);
+            for _j in 0..20 {
+                test_helper_with_verify(&kzen_label, 2, i, &BigInt::from(100));
+            }
+        }
+        */
+
+        // test when varying nv for Y_ij
+        /*
+        for i in (300..=3900).step_by(300) {
+            println!("nv = {}", i);
+                test_helper_with_verify(&kzen_label, i, 1, &BigInt::from(2));
+        }
+        */
+
+        // test when varying t for range proof
+        /*
+        for i in 0..=25 {
+            let value = BigInt::from(2).pow(i);
+            println!("t = 2^{}", i);
+            test_helper_with_verify(&kzen_label, 10, 10, &value);
+        }
+        */
+
+        // test when varying t for tallying
+        /*
+        for i in 0..=25 {
+            let value = BigInt::from(2).pow(i);
+            println!("t = 2^{}", i);
+            for _j in 0..10 {
+                test_helper_with_verify(&kzen_label, 2, 1, &value);
+            }
+        }
+        */
+
+        // test when varying nv for tallying
+        /*
+        for i in (300..=3900).step_by(300) {
+            println!("nv = {}", i);
+            for _j in 0..10 {
+                test_helper_with_verify(&kzen_label, i, 1, &BigInt::from(100));
+            }
+        }
+        */
     }
 
     #[test]
@@ -606,7 +672,7 @@ mod test {
         for exp in 20..=60 {
             let scalar_value = 2_u64.pow(exp);
             let scalar = Scalar::<Secp256k1>::from(scalar_value);
-
+            
             let point = &g * scalar.clone();
     
             let mut flag = true;
