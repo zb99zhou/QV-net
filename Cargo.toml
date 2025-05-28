@@ -15,9 +15,9 @@ ark-secp256k1 = { version = "0.4.0", default-features = false }
 ark-ff = { version = "^0.4.0", default-features = false }
 rand = "0.8.5"
 chrono = "0.4"
-subroutines = { git = "https://github.com/zb99zhou/hyperplonk.git" }
-arithmetic = { git = "https://github.com/zb99zhou/hyperplonk.git" }
-VarRange = { git = "https://github.com/zb99zhou/VarRange.git" }
+subroutines = { path = "./hyperplonk/subroutines" }
+arithmetic = { path = "./hyperplonk/arithmetic" }
+VarRange = { path = "./VarRange" }
 
 [dev-dependencies]
 criterion = "0.3.0"
