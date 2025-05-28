@@ -10,7 +10,6 @@ use std::marker::PhantomData;
 mod errors;
 pub mod prelude;
 mod structs;
-mod sum_check;
 mod utils;
 mod zk_sum_check;
 
