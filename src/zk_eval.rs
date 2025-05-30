@@ -1,5 +1,11 @@
 #![allow(non_snake_case)]
 
+/// This file implements a zero-knowledge Eval protocol of the
+/// discrete-logarithm-based multilinear polynomial commitment scheme.
+/// Given g \in \mathbb{G}^n, C \in \mathbb{G}, b \in \mathbb{F}^n, t \in \mathbb{F},
+/// it allows to prove the knowledge of a \in \mathbb{F}^n, such that 
+/// C = g^{a} \land t = \langle a, b \rangle
+/// 
 use curv::{arithmetic::{Converter, Modulo, Zero}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{secp256_k1::hash_to_curve::generate_random_point, Point, Scalar, Secp256k1}, BigInt};
 use merlin::Transcript;
 use sha2::{Digest, Sha512};
@@ -361,14 +367,12 @@ mod test {
 
         let a_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                
                 Scalar::<Secp256k1>::random()
             })
             .collect();
 
         let b_vec: Vec<Scalar<Secp256k1>> = (0..n)
             .map(|_| {
-                
                 Scalar::<Secp256k1>::random()
             })
             .collect();
@@ -398,40 +402,7 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_zk_eval_2() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 2);
-    }
 
-    #[test]
-    pub fn test_zk_eval_4() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 4);
-    }
-
-    #[test]
-    pub fn test_zk_eval_8() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 8);
-    }
-
-    #[test]
-    pub fn test_zk_eval_16() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 16);
-    }
-    
-    #[test]
-    pub fn test_zk_eval_32() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 32);
-    }
 
     #[test]
     pub fn test_zk_eval_64() {

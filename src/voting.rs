@@ -1,4 +1,9 @@
 #![allow(non_snake_case)]
+
+/// This file implements the QV-net procedure,
+/// including the voting phase and tallying phase.
+/// 
+
 use crate::Errors::{self, VotingError};
 use ark_ff::{One, Zero};
 use curv::{arithmetic::{Converter, Roots}, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
@@ -43,71 +48,6 @@ pub struct BallotWithProof {
     proof_ar: VarRange
 }
 
-// Shanks' baby-step giant-step algorithm, calculate ind_g{B}
-pub fn tally_helper(
-    g: &Point<Secp256k1>, 
-    B: &Point<Secp256k1>, 
-    bound: &BigInt, 
-    flag: &mut bool
-) -> Scalar<Secp256k1> {
-    let n_bn = bound.sqrt() + BigInt::one();
-    let n = &Scalar::<Secp256k1>::from_bigint(&n_bn);
-    let mut counter = BigInt::one();
-    let one = &Scalar::<Secp256k1>::from(1);
-    let one_bn = &BigInt::from(1);
-    let mut res = &Scalar::<Secp256k1>::zero();
-
-    let mut p = Scalar::<Secp256k1>::from(1);
-    let mut q = Scalar::<Secp256k1>::from(0);
-    let mut giants: HashMap<Vec<u8>, Scalar<Secp256k1>> = HashMap::new();
-    let mut giant: Point<Secp256k1>;
-    let mut baby: Point<Secp256k1>;
-
-    // let mut giant_step_count = 0; 
-    // let mut baby_step_count = 0;
-
-    while counter <= n_bn {
-        giant = g * (&p * n);
-        giants.insert(giant.x_coord().unwrap().to_bytes(), p.clone());
-        p = p + one;
-        counter += one_bn;
-
-        // increase Giant-step times
-        // giant_step_count += 1;
-    }
-
-    counter = BigInt::zero();
-    while counter <= n_bn {
-        baby = B + g * &q;
-        if baby == Point::<Secp256k1>::zero() {
-            *flag = true;
-
-            // println!("Giant-step executed: {}", giant_step_count);
-            // println!("Baby-step executed: {}", baby_step_count);
-
-            return -q;
-        }
-        if let Some(giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
-            res = giant_p;
-            *flag = true;
-            break;
-        }
-        q = q + one;
-        counter += one_bn;
-
-        // increase Baby-step times
-        // baby_step_count += 1;
-    }
-
-    // println!("Giant-step executed: {}", giant_step_count);
-    // println!("Baby-step executed: {}", baby_step_count);
-
-    if g * (res * n - &q) == *B {
-        res * n - q
-    } else {
-        - res * n - q
-    }
-}
 
 impl PublicParam {
     pub fn new(
@@ -130,7 +70,6 @@ impl PublicParam {
             nc
         }
     }
-    
 }
 
 impl Voter {
@@ -530,6 +469,72 @@ impl Board {
     }
 }
 
+// Shanks' baby-step giant-step algorithm
+pub fn tally_helper(
+    g: &Point<Secp256k1>, 
+    B: &Point<Secp256k1>, 
+    bound: &BigInt, 
+    flag: &mut bool
+) -> Scalar<Secp256k1> {
+    let n_bn = bound.sqrt() + BigInt::one();
+    let n = &Scalar::<Secp256k1>::from_bigint(&n_bn);
+    let mut counter = BigInt::one();
+    let one = &Scalar::<Secp256k1>::from(1);
+    let one_bn = &BigInt::from(1);
+    let mut res = &Scalar::<Secp256k1>::zero();
+
+    let mut p = Scalar::<Secp256k1>::from(1);
+    let mut q = Scalar::<Secp256k1>::from(0);
+    let mut giants: HashMap<Vec<u8>, Scalar<Secp256k1>> = HashMap::new();
+    let mut giant: Point<Secp256k1>;
+    let mut baby: Point<Secp256k1>;
+
+    // let mut giant_step_count = 0; 
+    // let mut baby_step_count = 0;
+
+    while counter <= n_bn {
+        giant = g * (&p * n);
+        giants.insert(giant.x_coord().unwrap().to_bytes(), p.clone());
+        p = p + one;
+        counter += one_bn;
+
+        // increase Giant-step times
+        // giant_step_count += 1;
+    }
+
+    counter = BigInt::zero();
+    while counter <= n_bn {
+        baby = B + g * &q;
+        if baby == Point::<Secp256k1>::zero() {
+            *flag = true;
+
+            // println!("Giant-step executed: {}", giant_step_count);
+            // println!("Baby-step executed: {}", baby_step_count);
+
+            return -q;
+        }
+        if let Some(giant_p) = giants.get(&baby.x_coord().unwrap().to_bytes()) {
+            res = giant_p;
+            *flag = true;
+            break;
+        }
+        q = q + one;
+        counter += one_bn;
+
+        // increase Baby-step times
+        // baby_step_count += 1;
+    }
+
+    // println!("Giant-step executed: {}", giant_step_count);
+    // println!("Baby-step executed: {}", baby_step_count);
+
+    if g * (res * n - &q) == *B {
+        res * n - q
+    } else {
+        - res * n - q
+    }
+}
+
 mod test {
     use std::time::Instant;
 
@@ -537,7 +542,7 @@ mod test {
     use curv::{arithmetic::{Converter, Modulo, Roots}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
     use sha2::{Digest, Sha512};
 
-    use crate::{sigma_dl::generate_random_point, voting::tally_helper};
+    use crate::{sigma_dl::generate_random_point};
 
     use super::{Board, Voter};
 
@@ -624,8 +629,6 @@ mod test {
     pub fn test_voting_with_verify() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
-        
-        // test_helper_with_verify(&kzen_label, 10, 10, &BigInt::from(1_200_000));
 
         for _i in 0..1 {
            test_helper_with_verify(&kzen_label, 2, 1, &BigInt::from(1 << 14));
@@ -695,7 +698,7 @@ mod test {
     
             let mut flag = true;
             let start = Instant::now();
-            let Bj_scalar = tally_helper(&g, &point, &BigInt::from(scalar_value), &mut flag);
+            let Bj_scalar = super::tally_helper(&g, &point, &BigInt::from(scalar_value), &mut flag);
             let elapsed = start.elapsed();
             println!(
                 "Time elapsed in Shanks for scalar 2^{}: {:?}",

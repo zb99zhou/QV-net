@@ -10,7 +10,6 @@ use std::marker::PhantomData;
 mod errors;
 pub mod prelude;
 mod structs;
-mod utils;
 mod zk_sum_check;
 
 #[derive(Clone, Debug, Default, Copy, PartialEq, Eq)]

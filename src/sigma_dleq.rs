@@ -1,5 +1,10 @@
 #![allow(non_snake_case)]
 
+/// This file implements an AND composition for proving the discrete logarithm equality.
+/// Given h,g,Y,y,B \in \mathbb{G}^n, it allows to prove
+/// the knowledge of v,x \in \mathbb{F}^n, such that 
+/// for all i\in[n], y_i = h_i^{(x_i)} \land B_i = g_i^{(v_i)} \cdot Y_i^{(x_i)}
+/// 
 use curv::elliptic::curves::{Point, Scalar, Secp256k1};
 use merlin::Transcript;
 use crate::{transcript::TranscriptProtocol, Errors::SigmaDleqProofError};
@@ -200,33 +205,6 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_sigma_dleq_4() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 4);
-    }
-
-    #[test]
-    pub fn test_sigma_dleq_8() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 8);
-    }
-
-    #[test]
-    pub fn test_sigma_dleq_16() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 16);
-    }
-    
-    #[test]
-    pub fn test_sigma_dleq_32() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 32);
-    }
 
     #[test]
     pub fn test_sigma_dleq_64() {

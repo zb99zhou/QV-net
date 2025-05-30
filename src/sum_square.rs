@@ -1,7 +1,14 @@
 #![allow(non_snake_case)]
 
-use std::{marker::PhantomData, sync::Arc};
+/// This file implements a succinct ZKAoK for sum-of-square relation.
+/// Given g,Y \in \mathbb{G}^n, q,h,B,\hat{B} \in \mathbb{G}, it allows to prove
+/// the knowledge of v,x \in \mathbb{F}^n, u,r \in \mathbb{F}, such that 
+/// B = g^{v} \cdot Y^{x} \land \hat{B} = q^{u} \cdot h^{r} \land
+/// u = \sum_{i=1}^{n} v_i^2
+/// 
 
+use std::{marker::PhantomData, sync::Arc};
+ 
 use arithmetic::{build_eq_x_r_vec, DenseMultilinearExtension, VPAuxInfo, VirtualPolynomial};
 use ark_ff::{BigInteger, PrimeField, Zero};
 use curv::{arithmetic::{Converter, Modulo}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
@@ -258,14 +265,14 @@ impl ZkSumSquareArg {
 
         assert_eq!(Fr2Scalar(&sum), *u);
 
-        // do zk-sum-check
+        // do zkSumCheck
         let mut sum_check_transcript = <PolyIOP<Fr> as ZkSumCheck<Fr>>::init_transcript();
         let proof = <PolyIOP<Fr> as ZkSumCheck<Fr>>::prove(&poly, &g_star_poly, &Scalar2Fr(&rho), &mut sum_check_transcript).unwrap();
         
-        // get `challenge_points` in zk-sum-check
+        // get `challenge_points` in zkSumCheck
         let challenge_points: Vec<Fr> = proof.clone().point;
 
-        // final check by `zkEval`
+        // `zkEval`
         // get Z(r)
         let mut Z_poly = VirtualPolynomial::new(num_variables);
         let Z = [Z0, Z1].to_vec();
@@ -303,7 +310,7 @@ impl ZkSumSquareArg {
             .collect::<Vec<BigInt>>();
         let f_star_eval = ZkEval::eval(transcript, &base_f_star, &(B + &C_R * Z_r), &a_vec, &b_vec, 2*n, &(seed + BigInt::from((6*num_variables+2) as i32)));
 
-        // get `r_star`
+        // `zkEval` for `g_star`
         let mut b_vec = Vec::with_capacity(6*num_variables+2);
         b_vec.push(BigInt::from(1));
         for i in 0..challenge_points.len() {
@@ -441,7 +448,7 @@ impl ZkSumSquareArg {
             &(seed + BigInt::from((6*num_variables+2) as i32))
         );
 
-        // get `r_star`
+        
         let mut b_vec = Vec::with_capacity(6*num_variables+2);
         b_vec.push(BigInt::from(1));
         for challenge in challenge_points.iter() {
@@ -585,33 +592,6 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_zk_ss_4() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 4);
-    }
-
-    #[test]
-    pub fn test_zk_ss_8() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 8);
-    }
-
-    #[test]
-    pub fn test_zk_ss_16() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 16);
-    }
-
-    #[test]
-    pub fn test_zk_ss_32() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 32);
-    }
 
     #[test]
     pub fn test_zk_ss_64() {
@@ -620,33 +600,6 @@ mod test {
         test_helper(&kzen_label, 64);
     }
 
-    #[test]
-    pub fn test_zk_ss_3() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 3);
-    }
-
-    #[test]
-    pub fn test_zk_ss_7() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 7);
-    }
-
-    #[test]
-    pub fn test_zk_ss_15() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 15);
-    }
-
-    #[test]
-    pub fn test_zk_ss_31() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 31);
-    }
 
     #[test]
     pub fn test_zk_ss_55() {

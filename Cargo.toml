@@ -14,13 +14,10 @@ generic-array = "0.14"
 ark-secp256k1 = { version = "0.4.0", default-features = false }
 ark-ff = { version = "^0.4.0", default-features = false }
 rand = "0.8.5"
-chrono = "0.4"
 subroutines = { path = "./zkSumCheck/subroutines" }
 arithmetic = { path = "./zkSumCheck/arithmetic" }
 VarRange = { path = "./VarRange" }
 
-[dev-dependencies]
-criterion = "0.3.0"
 
 [features]
 default = ["curv-kzen/rust-gmp-kzen"]

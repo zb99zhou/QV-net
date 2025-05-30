@@ -16,8 +16,6 @@ merlin = { version = "3.0.0", default-features = false }
 sha2 = "0.9"
 generic-array = "0.14"
 
-[dev-dependencies]
-criterion = "0.2"
 
 [features]
 default = ["curv-kzen/rust-gmp-kzen"]

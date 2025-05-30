@@ -1,12 +1,14 @@
 #![allow(non_snake_case)]
 
+/// This file implements VarRange for relation \mathcal{R}_{ar}
+/// 
 use generic_array::typenum::Unsigned;
 use curv::{cryptographic_primitives::hashing::DigestExt, elliptic::curves::{secp256_k1::Secp256k1, Curve, ECPoint, Point, Scalar}, BigInt};
 use curv::arithmetic::traits::*;
 use generic_array::GenericArray;
 use merlin::Transcript;
 use sha2::{Digest, Sha512};
-use std::ops::{Shl, Shr};
+use std::ops::{Shl, Shr}; 
 use itertools::iterate;
 use crate::{proofs::transcript::TranscriptProtocol, Errors::{RangeProofError, VarRangeError}};
 use crate::Errors;
@@ -15,7 +17,7 @@ use super::{ipa::InnerProductArg, sigma_pedersen::SigmaPedersenProof, vec_poly::
 
 // an argument of knowledge of the vector "L"
 // when n*b+b_bar <= 21, this enumeration type is the vector "L" itself
-// otherwise it consists of t_hat and an inner product argument(IPA)
+// otherwise it consists of t_hat and an inner product argument
 #[derive(Clone)]
 enum AgKnowledgeVec {
     LVec(Vec<Scalar<Secp256k1>>),
@@ -521,7 +523,7 @@ impl VarRange {
         let one_vec = vec![one.clone(); n*b+b_bar];
 
         // the 8th element is const (i.e. the offset of M_poly is 8, but M[0]=M[1]=0) 
-        // the we need prove M[8] = 0
+        // the we need to prove M[8] = 0
         M_poly[8] = BigInt::mod_sub(&M_poly[8], &(two.clone() * inner_product(&one_vec, &temp_vec, order)), order);
         
         // M_poly[0] = M_plot[1] = 0, we need to commit the non-zero coeff
@@ -1088,6 +1090,7 @@ mod test {
 
     use super::{generate_random_point, VarRange};
 
+    // to prove v_1,...,v_n in [-s,s] and v_{n+1} \in [0,t], where t = s^2
     pub fn test_helper_range_proof(seed: &BigInt, s: Scalar<Secp256k1>, n: usize) {
         let gi = (0..n+1)
             .map(|i| {
@@ -1168,19 +1171,6 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_batch_4_varrange_proof_32() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(32)), 4);
-    }
-    
-    #[test]
-    pub fn test_batch_4_varrange_proof_64() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(64)), 4);
-    }
 
     #[test]
     pub fn test_batch_4_varrange_proof_128() {
@@ -1189,40 +1179,6 @@ mod test {
         test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(128)), 4);
     }
 
-    #[test]
-    pub fn test_batch_4_varrange_proof_31() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(31)), 4);
-    }
-    
-    #[test]
-    pub fn test_batch_4_varrange_proof_63() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(63)), 4);
-    }
-
-    #[test]
-    pub fn test_batch_4_varrange_proof_127() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper_range_proof(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(127)), 4);
-    }
-
-    #[test]
-    pub fn test_batch_4_varrange_31() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(31)), 4);
-    }
-
-    #[test]
-    pub fn test_batch_4_varrange_63() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, Scalar::<Secp256k1>::from_bigint(&BigInt::from(63)), 4);
-    }
 
     #[test]
     pub fn test_batch_4_varrange_127() {

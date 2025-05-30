@@ -7,7 +7,7 @@
 //! This module defines our main mathematical object `VirtualPolynomial`; and
 //! various functions associated with it.
 
-use crate::{errors::ArithErrors, multilinear_polynomial::random_zero_mle_list, random_mle_list};
+use crate::{errors::ArithErrors, multilinear_polynomial::random_zero_mle_list, multilinear_polynomial::random_mle_list};
 use ark_ff::PrimeField;
 use ark_poly::{DenseMultilinearExtension, MultilinearExtension};
 use ark_serialize::CanonicalSerialize;
@@ -332,22 +332,6 @@ impl<F: PrimeField> VirtualPolynomial<F> {
     }
 }
 
-/// Evaluate eq polynomial.
-pub fn eq_eval<F: PrimeField>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
-    if x.len() != y.len() {
-        return Err(ArithErrors::InvalidParameters(
-            "x and y have different length".to_string(),
-        ));
-    }
-    let start = start_timer!(|| "eq_eval");
-    let mut res = F::one();
-    for (&xi, &yi) in x.iter().zip(y.iter()) {
-        let xi_yi = xi * yi;
-        res *= xi_yi + xi_yi - xi - yi + F::one();
-    }
-    end_timer!(start);
-    Ok(res)
-}
 
 /// This function build the eq(x, r) polynomial for any given r.
 ///

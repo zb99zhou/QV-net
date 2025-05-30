@@ -1,5 +1,11 @@
 #![allow(non_snake_case)]
 
+/// This file implements the vector polynomials used in VarRange.
+/// We define vector polynomials p(X) = \sum_{i=0}^{d} p_i \cdot X^i
+/// where each coefficient p_i is a vector in \mathbb{F}^n.
+/// In order to describe the Laurent polynomials more conveniently,
+/// `offset` is introduced to represent lowest-degree term in the polynomial.
+/// 
 use curv::BigInt;
 use curv::arithmetic::traits::*;
 use std::ops::{Add, Mul};

@@ -1,5 +1,6 @@
 #![allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 #![allow(dead_code)]
+#![allow(non_snake_case)]
 
 mod sigma_dl;
 mod sigma_dleq;

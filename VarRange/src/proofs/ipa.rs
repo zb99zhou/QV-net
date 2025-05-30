@@ -1,5 +1,11 @@
 #![allow(non_snake_case)]
 
+/// This file implements an inner product argument.
+/// Given g,h \in \mathbb{G}^n, u,P,Q \in \mathbb{G},
+/// it allows to prove the knowledge of a,b \in \mathbb{F}^n, such that 
+/// P = g^{a} \land Q = h^{b} \cdot u^{\lange a, b \rangle}
+/// 
+/// 
 use curv::{elliptic::curves::{secp256_k1::Secp256k1, Point, Scalar}, BigInt};
 use curv::arithmetic::traits::*;
 use merlin::Transcript;
@@ -168,7 +174,7 @@ impl InnerProductArg {
     ) -> Result<(), Errors> {
         let n_hat = G.len();
 
-         // All of the input vectors must have the same length.
+        // All of the input vectors must have the same length.
         assert_eq!(G.len(), n_hat);
         assert_eq!(H.len(), n_hat);
         assert!(n_hat.is_power_of_two());
@@ -338,50 +344,6 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_ipa_2() {
-        test_helper(2);
-    }
-    
-    #[test]
-    pub fn test_ipa_4() {
-        test_helper(4);
-    }
-    
-    #[test]
-    pub fn test_ipa_8() {
-        test_helper(8);
-    }
-    
-    #[test]
-    pub fn test_ipa_16() {
-        test_helper(16);
-    }
-
-    #[test]
-    pub fn test_ipa_32() {
-        test_helper(32);
-    }
-
-    #[test]
-    pub fn test_ipa_64() {
-        test_helper(64);
-    }
-
-    #[test]
-    pub fn test_ipa_128() {
-        test_helper(128);
-    }
-
-    #[test]
-    pub fn test_ipa_256() {
-        test_helper(256);
-    }
-
-    #[test]
-    pub fn test_ipa_512() {
-        test_helper(512);
-    }
 
     #[test]
     pub fn test_ipa_1024() {

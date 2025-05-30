@@ -16,7 +16,7 @@ use super::structs::RandomMaskPolynomial;
 mod prover;
 mod verifier;
 
-/// Trait for doing zk sum check protocols.
+/// Trait for doing zkSumCheck protocols.
 pub trait ZkSumCheck<F: PrimeField> {
     type VirtualPolynomial;
     type VPAuxInfo;
@@ -61,7 +61,7 @@ pub trait ZkSumCheck<F: PrimeField> {
     ) -> Result<Self::SumCheckSubClaim, PolyIOPErrors>;
 }
 
-/// Trait for zk sum check protocol prover side APIs.
+/// Trait for zkSumCheck protocol prover side APIs.
 pub trait ZkSumCheckProver<F: PrimeField>
 where
     Self: Sized,
@@ -83,7 +83,7 @@ where
     ) -> Result<Self::ProverMessage, PolyIOPErrors>;
 }
 
-/// Trait for zk sum check protocol verifier side APIs.
+/// Trait for zkSumCheck protocol verifier side APIs.
 pub trait ZkSumCheckVerifier<F: PrimeField> {
     type VPAuxInfo;
     type ProverMessage;
@@ -268,7 +268,6 @@ mod test {
         let nv = 10;
         let num_multiplicands_range = (2, 6);
         let num_products = 2;
-
         test_sumcheck(nv, num_multiplicands_range, num_products)
     }
 }

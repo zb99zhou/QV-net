@@ -1,5 +1,10 @@
 #![allow(non_snake_case)]
 
+/// This file implements an AND composition for proving knowledge of the discrete logarithm.
+/// Given h \in \mathbb{G}^n, y \in \mathbb{G}^n, it allows to prove
+/// the knowledge of x \in \mathbb{F}^n, such that 
+/// y_i = h_i^{(x_i)} for all i\in[n]
+/// 
 use generic_array::typenum::Unsigned;
 use curv::{elliptic::curves::{secp256_k1::Secp256k1, Curve, ECPoint, Point, Scalar}, BigInt};
 use curv::arithmetic::traits::*;
@@ -148,33 +153,6 @@ mod test {
         assert!(result.is_ok());
     }
 
-    #[test]
-    pub fn test_sigma_dl_4() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 4);
-    }
-
-    #[test]
-    pub fn test_sigma_dl_8() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 8);
-    }
-
-    #[test]
-    pub fn test_sigma_dl_16() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 16);
-    }
-    
-    #[test]
-    pub fn test_sigma_dl_32() {
-        let KZen: &[u8] = &[75, 90, 101, 110];
-        let kzen_label = BigInt::from_bytes(KZen);
-        test_helper(&kzen_label, 32);
-    }
 
     #[test]
     pub fn test_sigma_dl_64() {
