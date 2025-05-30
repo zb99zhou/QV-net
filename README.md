@@ -50,7 +50,7 @@ The QV-net project is structured as follows:
 - **`transcript.rs`**: Defines the transcript abstraction for managing Fiat-Shamir transformations.
 - **`sigma_dl.rs`**: Implements an AND composition for proving knowledge of discrete logarithm.
 - **`sigma_dleq.rs`**: Implements an AND composition for proving knowledge of discrete logarithm equality.
-- **`zk_eval.rs`**: Implements a zero-knowledge $\mathsf{Eval}$ protocol of the discrete-logarithm-based multilinear PCS.
+- **`zk_eval.rs`**: Implements a zero-knowledge Eval protocol of the discrete-logarithm-based multilinear PCS.
 - **`sum_square.rs`**: Implements a succinct ZKAoK for sum-of-square relation.
 - **`voting.rs`**: Implements the core QV-net protocol.
 

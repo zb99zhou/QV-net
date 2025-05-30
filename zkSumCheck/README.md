@@ -1,12 +1,6 @@
 # zkSumCheck: a zero-knowledge sum-check protocol
 
-This repository provides an implementation of zkSumCheck, a zero-knowledge sum-check protocol which is adapted from the [Hyperplonk](https://github.com/EspressoSystems/hyperplonk) library.
-
-Suppose we are given a $\ell$-variate polynomial $g$ defined over a finite field $\mathbb{F}$. A sum-check protocol allows a prover to provide the verifier with the follwing sum:
-$$
-H:=\sum_{\boldsymbol{b}\in\{0,1\}^\ell}g(\boldsymbol{b}).
-$$
-And zkSumCheck makes this argumentation process zero-knowledge with the help of random polynomials for mask.
+This repository provides an implementation of zkSumCheck, a zero-knowledge sum-check protocol. Except for `zkSumCheck/subroutines/src/poly_iop/zk_sum_check`, other files are directly ported from the [Hyperplonk library](https://github.com/EspressoSystems/hyperplonk), where we delete some unnecessary functions.
 
 ## Installation
 
@@ -19,16 +13,6 @@ For Linux and macOS, you can install Rust using the command:
 Verify the installation: `rustc --version`
 
 ## Build and Test
-
-This project requires the GMP library for high-performance arithmetic operations.
-
-Install GMP
-
-* For Ubuntu/Debian systems:
-  `sudo apt-get install libgmp-dev`.
-
-* For macOS:
-  `brew install gmp`
 
 Build the project: `cargo build --release`
 
@@ -43,14 +27,9 @@ The zkSumCheck project is structured as follows:
 - **`Cargo.toml`**: Defines the project dependencies, features, and metadata.
 - **`README.md`**: Provides an overview of the project, installation instructions, and usage guidelines.
 - **`arithmetic/`**: Contains the source code for the efficient polynomial arithmetic primitives implementation.
-  - **`Cargo.toml`**: Defines the directory dependencies, features, and metadata.
-  - **`src/`**: Contains the source code.
 - **`subroutines/`**: Contains the source code for the zero-knowledge sum-check protocol implementation.
-  - **`Cargo.toml`**: Defines the directory dependencies, features, and metadata.
-  - **`src/`**: Contains the source code.
 - **`transcript/`**: Contains the source code for the transcript abstraction for managing Fiat-Shamir transformations.
-  - **`Cargo.toml`**: Defines the directory dependencies, features, and metadata.
-  - **`src/`**: Contains the source code.
+- **`util/`**: Contains utility functions and helper modules used across the project.
 
 ### `arithmetic/src/` Directory
 
@@ -67,16 +46,11 @@ The zkSumCheck project is structured as follows:
 
   - **`mod.rs`**: Primary module file, declares sub-modules and orchestrates protocol components.
 
-  - **`errors.rs`**: Protocol-specific error handling defines error types (e.g., proof verification failure, invalid parameters).
-  - **`structs.rs`**: Core data structures, defines protocol objects (e.g., proof state
+  - **`errors.rs`**: Protocol-specific error handling defines error types.
+  - **`structs.rs`**: Core data structures, defines protocol objects.
   - **`prelude.rs`**: Module prelude, aggregates commonly used types/traits for simplified access.
 
   - **`zk_sum_check/`**: Contains the source code of the zero-knowledge sum-check protocol implementation.
     - **`mod.rs`**: Primary module file, declares sub-modules and orchestrates protocol components.
     - **`prover.rs`**: Prover algorithm implementation, generates ZK proofs for sumcheck protocol.
-    - **`verifier.rs`**: Verifier logic implementation, validates proof correctness and handles challenge-response.
-
-### `transcript/src/` Directory
-
-- **`lib.rs`**: The main entry point for the library. It organizes and exposes the core modules of the project.
-- **`errors.rs`**: Centralized error handling, defines custom error types and conversion logic.
+    - **`verifier.rs`**: Verifier logic implementation, validates proof correctness.
