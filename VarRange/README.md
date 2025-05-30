@@ -1,4 +1,4 @@
-# VarRange: an aggregated range proof supporting different bases and ranges.
+# VarRange: an aggregated range proof supporting different bases and ranges
 
 This repository provides an implementation of VarRange, an aggregated range proof that supports different bases and ranges.
 
