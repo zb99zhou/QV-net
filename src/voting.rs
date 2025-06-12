@@ -627,11 +627,18 @@ mod test {
 
     #[test]
     pub fn test_voting_with_verify() {
+        let nv: usize = std::env::var("NV").unwrap_or("2".to_string()).parse::<usize>().unwrap();
+        let nc: usize = std::env::var("NC").unwrap_or("1".to_string()).parse::<usize>().unwrap();
+        let token_num = BigInt::from_str_radix(
+            &std::env::var("TOKEN_NUM").unwrap_or("16383".to_string()),
+            10
+        ).unwrap();
+
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
 
         for _i in 0..1 {
-           test_helper_with_verify(&kzen_label, 2, 1, &BigInt::from(1 << 14));
+           test_helper_with_verify(&kzen_label, nv, nc, &token_num);
         }
 
         // test when varying nc
@@ -684,13 +691,27 @@ mod test {
     }
 
     #[test]
+    pub fn test_tally_vary_t_power() {
+        let nv: usize = std::env::var("NV").unwrap_or("2".to_string()).parse::<usize>().unwrap();
+        let nc: usize = std::env::var("NC").unwrap_or("1".to_string()).parse::<usize>().unwrap();
+        let power_token_num = std::env::var("POW_TOKEN_NUM").unwrap_or("1".to_string()).parse::<usize>().unwrap();
+
+        let KZen: &[u8] = &[75, 90, 101, 110];
+        let kzen_label = BigInt::from_bytes(KZen);
+
+        for _i in 0..1 {
+           test_helper_with_verify(&kzen_label, nv, nc, &BigInt::from(1u64 << power_token_num));
+        }
+    }
+
+    #[test]
     pub fn test_shanks() {
         let KZen: &[u8] = &[75, 90, 101, 110];
         let kzen_label = BigInt::from_bytes(KZen);
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
         
-        for exp in 20..=20 {
+        for exp in 20..=55 {
             let scalar_value = 2_u64.pow(exp);
             let scalar = Scalar::<Secp256k1>::from(scalar_value);
             
