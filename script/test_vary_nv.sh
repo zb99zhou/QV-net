@@ -60,18 +60,18 @@ run_test() {
 
 # Function: Calculate and display averages
 display_results() {
-    local count=${OPERATIONS_COUNTS["tally"]}
-    local sum_us=${OPERATIONS_SUMS["tally"]}
+    local count=${OPERATIONS_COUNTS["tallying"]}
+    local sum_us=${OPERATIONS_SUMS["tallying"]}
     local avg_us=$(echo "scale=6; $sum_us / $count" | bc -l)
-    local unit=${OPERATIONS_UNITS["tally"]}
+    local unit=${OPERATIONS_UNITS["tallying"]}
         
     case $unit in
         "ms") avg_display=$(echo "scale=6; $avg_us / 1000" | bc -l) ;;
         "ns") avg_display=$(echo "scale=6; $avg_us * 1000" | bc -l) ;;
         *) avg_display=$avg_us ;;
     esac
-        
-    printf "%-25s %-12.6f %-12s\n" "tally" "$avg_display" "$unit"
+
+    printf "%-25s %-12.6f %-12s\n" "tallying" "$avg_display" "$unit"
 
     local count=${OPERATIONS_COUNTS["generate Yij"]}
     local sum_us=${OPERATIONS_SUMS["generate Yij"]}
@@ -96,11 +96,18 @@ reset_stats
 export NV=2
 export NC=1
 export TOKEN_NUM=100
-echo "[Figure 3g - 3h]"
+echo "[Figure 3g, 3h]"
+
+echo "Running with n_v=2: Starting benchmark ..."
+for ((j=1; j<=$RUN_TIMES; j++)); do
+    run_test
+done
+display_results
+
 for ((i=300; i<=3900; i=i+300)); do
     reset_stats
     NV=$i
-    echo "Running with NV=$NV: Starting benchmark (${RUN_TIMES} iterations)..."
+    echo "Running with n_v=$NV: Starting benchmark ..."
     for ((j=1; j<=$RUN_TIMES; j++)); do
         run_test
     done

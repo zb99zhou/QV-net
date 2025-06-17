@@ -181,7 +181,7 @@ impl Voter {
             .map(|j| &BulletinBoard.pp.g_vec[j] * &v_vec[j] + &self.Y_vec[j] * &self.x_vec[j])
             .collect::<Vec<Point<Secp256k1>>>();
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate B_vec: {:?}", elapsed);
+        println!("Time elapsed in generate Bij: {:?}", elapsed);
 
         let mut u = Scalar::<Secp256k1>::zero();
         for j in 0..BulletinBoard.pp.nc {
@@ -195,7 +195,7 @@ impl Voter {
         let start = Instant::now();
         let B = &BulletinBoard.pp.g * &u + &BulletinBoard.pp.h * &r;
         let elapsed = start.elapsed();
-        println!("Time elapsed in generate B: {:?}", elapsed);
+        println!("Time elapsed in generate Bi: {:?}", elapsed);
 
 
         let mut transcript = Transcript::new(b"Proof");
@@ -539,7 +539,7 @@ mod test {
     use std::time::Instant;
 
     use ark_ff::Zero;
-    use curv::{arithmetic::{Converter, Modulo, Roots}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
+    use curv::{arithmetic::{Converter, Roots}, cryptographic_primitives::hashing::DigestExt, elliptic::curves::{Point, Scalar, Secp256k1}, BigInt};
     use sha2::{Digest, Sha512};
 
     use crate::{sigma_dl::generate_random_point};
@@ -547,6 +547,7 @@ mod test {
     use super::{Board, Voter};
 
     pub fn test_helper_with_verify(seed: &BigInt, nv: usize, nc: usize, token_num: &BigInt) {
+        print!("Testing with nv = {}, nc = {}, token_num = {} ... ", nv, nc, token_num);
         let h_vec = (0..nc)
             .map(|i| {
                 let kzen_label_i = BigInt::from(i as u32) + seed;
@@ -587,7 +588,6 @@ mod test {
         board.precompute_for_verify();
 
         // voters: prove
-        let order = Scalar::<Secp256k1>::group_order();
         let mut v_vec: Vec<Vec<Scalar<Secp256k1>>> = Vec::new();
         let mut tokens: Vec<Scalar<Secp256k1>> = Vec::new();
         let bound = BigInt::sqrt(&(token_num / BigInt::from(nc as u64)));
@@ -595,10 +595,9 @@ mod test {
             let mut vi_vec: Vec<Scalar<Secp256k1>> = Vec::new();
             let mut square_sum = BigInt::zero();
             for _ in 0..nc {
-                // in this test, we set `vij` \sqrt `token_num` / `nc`,
-                // so \sum_j vij < token_num
-                let sign = 1;
-                let vij = BigInt::mod_mul(&bound, &(order + BigInt::from(sign)), order);
+                // in this test, we set vij = \sqrt(token_num / nc),
+                // so \sum_j vij^2 <= token_num
+                let vij = bound.clone();
                 vi_vec.push(Scalar::<Secp256k1>::from_bigint(&vij));
                 square_sum += &vij * &vij;
             }
@@ -613,7 +612,7 @@ mod test {
         let start = Instant::now();
         let res = board.tally(&(&bound * BigInt::from(nv as u64))).unwrap();
         let elapsed = start.elapsed();
-        println!("Time elapsed in tally: {:?}", elapsed);
+        println!("Time elapsed in tallying: {:?}", elapsed);
 
         // test correctness
         for j in 0..nc {
@@ -691,7 +690,7 @@ mod test {
     }
 
     #[test]
-    pub fn test_tally_vary_t_power() {
+    pub fn test_vary_t_power() { 
         let nv: usize = std::env::var("NV").unwrap_or("2".to_string()).parse::<usize>().unwrap();
         let nc: usize = std::env::var("NC").unwrap_or("1".to_string()).parse::<usize>().unwrap();
         let power_token_num = std::env::var("POW_TOKEN_NUM").unwrap_or("1".to_string()).parse::<usize>().unwrap();
@@ -711,7 +710,7 @@ mod test {
         let hash = Sha512::new().chain_bigint(&kzen_label).result_bigint();
         let g = generate_random_point(&Converter::to_bytes(&hash));
         
-        for exp in 20..=55 {
+        for exp in 20..=36 {
             let scalar_value = 2_u64.pow(exp);
             let scalar = Scalar::<Secp256k1>::from(scalar_value);
             
@@ -722,8 +721,8 @@ mod test {
             let Bj_scalar = super::tally_helper(&g, &point, &BigInt::from(scalar_value), &mut flag);
             let elapsed = start.elapsed();
             println!(
-                "Time elapsed in Shanks for scalar 2^{}: {:?}",
-                exp, elapsed
+                "Time elapsed in Shanks for bnd 2^{}: {:.6}s",
+                exp, elapsed.as_secs_f64()
             );
             // if !flag {
             //     Bj_scalar = tally_helper(&(-g), &point, &BigInt::from((1100000) as u64), &mut flag);

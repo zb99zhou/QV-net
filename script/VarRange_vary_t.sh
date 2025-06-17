@@ -4,7 +4,7 @@
 export NV=42
 export NC=3
 export POW_TOKEN_NUM=1
-TEST_CMD="cargo test test_tally_vary_t_power --release -- --nocapture"
+TEST_CMD="cargo test test_vary_t_power --release -- --nocapture"
 RUN_TIMES=1
 
 # Initialize data structures
@@ -93,12 +93,12 @@ cd ..
 reset_stats
 export NV=1
 export NC=10
-export POW_TOKEN_NUM=1
-echo "[Figure 3f]"
-for ((i=1; i<=25; i++)); do
+export POW_TOKEN_NUM=0
+echo "[Figure 4]"
+for ((i=0; i<=25; i++)); do
     reset_stats
     POW_TOKEN_NUM=$i
-    echo "Running with TOKEN_NUM=2^$POW_TOKEN_NUM: Starting benchmark (${RUN_TIMES} iterations)..."
+    echo "Running with t=2^$POW_TOKEN_NUM: Starting benchmark ..."
     for ((j=1; j<=$RUN_TIMES; j++)); do
         run_test
     done

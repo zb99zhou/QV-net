@@ -22,7 +22,18 @@ Install GMP
 `sudo apt-get install libgmp-dev`.
 
 * For macOS:
-`brew install gmp`
+  `brew install gmp`. 
+
+  After installation, set the environment variables according to your Mac processor type so that the compiler and linker can find the GMP library files:    
+  - For Apple-Silicon macOS:  
+    `export LIBRARY_PATH="/opt/homebrew/lib"`
+
+    `export CPATH="/opt/homebrew/include"`
+
+  - For Intel Macs:  
+    `export LIBRARY_PATH="/usr/local/lib"`
+
+    `export CPATH="/usr/local/include"`
 
 Build the project: `cargo build --release`
 

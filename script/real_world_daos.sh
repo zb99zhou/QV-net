@@ -34,6 +34,7 @@ convert_to_us() {
 # Function: Execute test and record timings
 run_test() {
     local output=$($TEST_CMD 2>&1)
+    local skip_generate_yij=false
     # echo $output
     
     # Process each timing line
@@ -43,6 +44,11 @@ run_test() {
             local value="${BASH_REMATCH[2]}"
             local unit="${BASH_REMATCH[3]}"
             
+            if [[ "$operation" == "generate yij" && "$skip_generate_yij" == false ]]; then
+                skip_generate_yij=true
+                continue
+            fi
+
             # Convert to microseconds
             local value_us=$(convert_to_us "$value" "$unit")
             
@@ -91,7 +97,7 @@ reset_stats
 export NV=857
 export NC=4
 export TOKEN_NUM=1600000
-echo "[Table 5: MetFi] Starting benchmark (${RUN_TIMES} iterations)..."
+echo "[Table 5: MetFi] Starting benchmark ..."
 for ((i=1; i<=$RUN_TIMES; i++)); do
     run_test
 done
@@ -101,7 +107,7 @@ reset_stats
 export NV=9
 export NC=14
 export TOKEN_NUM=200
-echo "[Table 5: Karmaverse] Starting benchmark (${RUN_TIMES} iterations)..."
+echo "[Table 5: Karmaverse] Starting benchmark ..."
 for ((i=1; i<=$RUN_TIMES; i++)); do
     run_test
 done
@@ -111,7 +117,7 @@ reset_stats
 export NV=3700
 export NC=4
 export TOKEN_NUM=1
-echo "[Table 5: Pistachio] Starting benchmark (${RUN_TIMES} iterations)..."
+echo "[Table 5: Pistachio] Starting benchmark ..."
 for ((i=1; i<=$RUN_TIMES; i++)); do
     run_test
 done
@@ -121,7 +127,7 @@ reset_stats
 export NV=2800
 export NC=15
 export TOKEN_NUM=1200000
-echo "[Table 5: Gitcoin] Starting benchmark (${RUN_TIMES} iterations)..."
+echo "[Table 5: Gitcoin] Starting benchmark ..."
 for ((i=1; i<=$RUN_TIMES; i++)); do
     run_test
 done
@@ -131,7 +137,7 @@ reset_stats
 export NV=42
 export NC=3
 export TOKEN_NUM=13600000
-echo "[Table 5: Moon] Starting benchmark (${RUN_TIMES} iterations)..."
+echo "[Table 5: Moon] Starting benchmark ..."
 for ((i=1; i<=$RUN_TIMES; i++)); do
     run_test
 done

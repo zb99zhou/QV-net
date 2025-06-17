@@ -34,6 +34,7 @@ convert_to_us() {
 # Function: Execute test and record timings
 run_test() {
     local output=$($TEST_CMD 2>&1)
+    local skip_generate_yij=false
     # echo $output
     
     # Process each timing line
@@ -42,6 +43,11 @@ run_test() {
             local operation="${BASH_REMATCH[1]}"
             local value="${BASH_REMATCH[2]}"
             local unit="${BASH_REMATCH[3]}"
+            
+            if [[ "$operation" == "generate yij" && "$skip_generate_yij" == false ]]; then
+                skip_generate_yij=true
+                continue
+            fi
             
             # Convert to microseconds
             local value_us=$(convert_to_us "$value" "$unit")
@@ -95,7 +101,7 @@ echo "[Figure 3a - 3d]"
 for ((i=1; i<=20; i++)); do
     reset_stats
     export NC=$i
-    echo "Running with NC=$NC: Starting benchmark (${RUN_TIMES} iterations)..."
+    echo "Running with n_c=$NC: Starting benchmark ..."
     for ((j=1; j<=$RUN_TIMES; j++)); do
         run_test
     done

@@ -4,7 +4,7 @@
 export NV=42
 export NC=3
 export POW_TOKEN_NUM=1
-TEST_CMD="cargo test test_tally_vary_t_power --release -- --nocapture"
+TEST_CMD="cargo test test_vary_t_power --release -- --nocapture"
 RUN_TIMES=1
 
 # Initialize data structures
@@ -60,18 +60,18 @@ run_test() {
 
 # Function: Calculate and display averages
 display_results() {
-    local count=${OPERATIONS_COUNTS["tally"]}
-    local sum_us=${OPERATIONS_SUMS["tally"]}
+    local count=${OPERATIONS_COUNTS["tallying"]}
+    local sum_us=${OPERATIONS_SUMS["tallying"]}
     local avg_us=$(echo "scale=6; $sum_us / $count" | bc -l)
-    local unit=${OPERATIONS_UNITS["tally"]}
+    local unit=${OPERATIONS_UNITS["tallying"]}
         
     case $unit in
         "ms") avg_display=$(echo "scale=6; $avg_us / 1000" | bc -l) ;;
         "ns") avg_display=$(echo "scale=6; $avg_us * 1000" | bc -l) ;;
         *) avg_display=$avg_us ;;
     esac
-        
-    printf "%-25s %-12.6f %-12s\n" "tally" "$avg_display" "$unit"
+
+    printf "%-25s %-12.6f %-12s\n" "tallying" "$avg_display" "$unit"
     echo "──────────────────────────────────────────────────────"
 }
 
@@ -82,10 +82,10 @@ export NV=2
 export NC=1
 export POW_TOKEN_NUM=1
 echo "[Figure 3f]"
-for ((i=1; i<=25; i++)); do
+for ((i=0; i<=25; i++)); do
     reset_stats
     POW_TOKEN_NUM=$i
-    echo "Running with TOKEN_NUM=2^$POW_TOKEN_NUM: Starting benchmark (${RUN_TIMES} iterations)..."
+    echo "Running with t=2^$POW_TOKEN_NUM: Starting benchmark ..."
     for ((j=1; j<=$RUN_TIMES; j++)); do
         run_test
     done
