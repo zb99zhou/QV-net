@@ -44,6 +44,7 @@ Build the project: `cargo build --release`
 Run tests: `cargo test --release`
 
 ## Benchmark Scripts
+
 We provide a set of shell scripts in the  `script` directory to reproduce data reported in the paper. 
 
 Please ensure the `bc` command-line calculator is installed, as some scripts require it for floating-point calculations. 
@@ -52,6 +53,7 @@ Please ensure the `bc` command-line calculator is installed, as some scripts req
 * On macOS, install it with: `brew install bc`.
 
 ### Usage
+
 1. Navigate to the `script` directory:
    `cd script`
 
@@ -62,13 +64,44 @@ Please ensure the `bc` command-line calculator is installed, as some scripts req
    - `./tally_vary_t.sh` # Figure 3f.
    - `./test_vary_nv.sh` # Figure 3g, 3h.
    - `./VarRange_vary_t.sh` # Figure 4.
-        
+     
 ### Notes
 All storage overhead is manually calculated based on the storage complexity presented in Table 3, using the field and group element sizes of the Secp256k1 curve (32 bytes for $\mathbb{F}_p$ and 33 bytes for $\mathbb{G}$).
 
 For test cases with a large number of voters, the process may take a considerable amount of time (up to tens of minutes), as all voters are simulated on a single machine. In practice, each voter would execute their voting procedure independently.
 
 For the Shanks' algorithm, we limit the bound to values below $2^{36}$ to avoid excessively long runtimes.
+
+## Use Docker for Test
+
+You can alse run the benchmark test by using docker.
+
+Firstly, make sure that there is a docker service on your computer, you can open the shell and type the following command:
+
+```
+docker --version
+```
+
+If you get the output like `Docker version [DOCKER_VERSION], build [BUILD_VERSION]`, it means that docker service is well-installed on your machine. Otherwise, you should get the docker service by downloading the application like [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Orbstack](https://orbstack.dev/) or any other application which provides docker service.
+
+We provide you two ways to get the docker:
+
+- Build on your local machine
+  - We provide a `Dockerfile` at the root of our project so that you can build the docker by following the steps below:
+    1. Switch into the root of out project:  `cd QV-net`
+    2. Build docker on your local machine: `docker build -t qv-net .`
+    3. Run the docker: `docker run -it --rm --name qv-net qv-net`
+  - After that, you will enter into the workplace which has been set up in the docker. You can run the benchmark script or `cargo test` according to the above.
+  - When you finish the test, enter `exit` in the shell of the docker and then you'll exit the docker. The container will be detroyed automatically. You can also clean the image by the command `docker rmi qv-net`
+
+
+
+-  Pull the image from our repository on Dockerhub
+  - For creating the test environment more easily, we have already built the docker images for  `linux/amd64` and `linux/arm64` platform and pushed them to the Dockerhub. Following the steps below, you can get the image from Dockerhub.
+    1. Pull the docker: `docker pull [--platform [linux/amd64 or linux/arm64]] zb99zhou/qv-net`. You can choose the platform manually, or just ignore that option, docker will choose the best-suitable image.
+    2. Run the docker: `docker run -it --rm --name qv-net zb99zhou/qv-net`
+
+  - Then you can run the test as above. The container will be destroyed automatically as well, and you can clean the image by the command `docker rmi zb99zhou/qv-net`
 
 
 ## File Organization
